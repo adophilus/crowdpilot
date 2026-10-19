@@ -11,11 +11,11 @@ Today = Sun Oct 19. Deadline **Thu Oct 30, 23:45 EDT** (submit Wed Oct 29 EOD �
 | Day | Date | Milestone | Done means |
 |---|---|---|---|
 | D1 | Sun 19 | Kickoff + unblock | Monorepo skeleton live (typed-API chain green: api → openapi → client-types → client → backend `/health`), key form submitted, Onscript staging reachable + demo account has connected X/IG/FB + no 402s, Vercel project created |
-| D2 | Mon 20 | Qloo client + profile builder + deploy wiring | Qloo feature (mock + live layers); profile card renders; **Lagos coverage verified** (fallback NYC); nix bundle builds, CI + infra repo + Caddy vhost wired, backend reachable at `api.<domain>` |
-| D3 | Tue 21 | Publish spike | `POST /posts` → live post on demo X account end-to-end from the deployed backend (the riskiest integration proven early) |
-| D4–5 | Wed 22–Thu 23 | Agent loop + decide tools | Chat with `qloo_*` tools working; answers cite evidence; profile persists per session |
+| D2 | Mon 20 | Qloo client + profile builder + deploy wiring + DB | Qloo feature (mock + live layers); profile card renders; **Lagos coverage verified** (fallback NYC); nix bundle builds, CI + infra/ + Caddy vhost wired, backend reachable at `api.crowdpilot.hackathons.adophilus.com`; pg db + role created, migrations run |
+| D3 | Tue 21 | Publish spike | `POST /posts` → live post on demo X account end-to-end from the deployed backend, using a **seeded session** (riskiest integration proven early, not gated on auth) |
+| D4–5 | Wed 22–Thu 23 | Agent loop + decide tools + auth | Chat with `qloo_*` tools working; answers cite evidence; email-OTP sign-in live; publish requires session |
 | D6 | Fri 24 | Create + ship | Draft-post flow with grounding notes; publish from chat; image post if cheap |
-| D7 | Sat 25 | Side-by-side panel + demo persona | LLM-vs-Qloo toggle works; "Try demo café" path < 60s to wow |
+| D7 | Sat 25 | Side-by-side panel + demo persona + connect-your-own | LLM-vs-Qloo toggle works; "Try demo café" path < 60s to wow; connect-own-X flow live if Onscript OAuth deep-link cooperates |
 | D8 | Sun 26 | P1 scene feed + UI polish pass | Trending/events feed live; designer pass on chat + profile card |
 | D9 | Mon 27 | **Feature freeze. Deploy.** | Live on Vercel, judge-flow rehearsal passes on the deployed URL |
 | D10 | Tue 28 | Submission package | README, MIT license, Devpost description drafted, demo script rehearsed ×3, P2 scheduled-posts if slack |
@@ -28,8 +28,9 @@ Today = Sun Oct 19. Deadline **Thu Oct 30, 23:45 EDT** (submit Wed Oct 29 EOD �
 3. **Qloo lane** (D2–4, worker): qloo feature (mock + live layers) + profile endpoints; blocked only by key for live calls, not for code.
 4. **Onscript lane** (D3, worker): onscript feature + publish spike against staging from the deployed backend.
 5. **Agent lane** (D4–6, main/worker): llm feature, tool loop, prompts, citation discipline, SSE endpoint.
-6. **UI lane** (D7–8, designer): chat, profile card, evidence panel, demo-persona flow.
-7. **Review gate** (D8, oracle): pre-freeze review of agent prompts + evidence quality.
+6. **Auth/DB lane** (D2–4, worker, after scaffold): `packages/sql` (kysely + migrations: users/sessions/connected_accounts), `features/auth` (email OTP via Resend, SessionMiddleware), Auth route group, seed script (demo persona + pre-connected account). Publish gate switches from seed to real sessions at D4.
+7. **UI lane** (D7–8, designer): chat, profile card, evidence panel, demo-persona flow.
+8. **Review gate** (D8, oracle): pre-freeze review of agent prompts + evidence quality.
 
 Write ownership: lanes touch disjoint dirs (`features/{qloo,onscript,llm}`, `packages/api/src/<Group>`, `apps/web/...`, nix/CI files) — no overlaps, parallel-safe.
 

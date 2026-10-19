@@ -14,7 +14,7 @@
 | Typed APIs | `packages/api` (Effect HttpApi) → `openapi.json` → `api-client-types` → `api-client` (openapi-fetch + openapi-react-query) | — |
 | Lint/format | Biome (single root config) | — |
 | Runtime | Node 22 (`.nvmrc`), tsx for dev | — |
-| Persistence | **None.** Profile JSON lives in browser localStorage, sent on session init; server session memory; scheduled posts persist in Onscript | — |
+| Persistence | **Postgres on the VPS** (shared instance, `crowdpilot` db) via kysely + `packages/sql`; migrations runner; sessions as bearer tokens in localStorage | — |
 
 Fresh code throughout, structured in Onscript's image. Onscript itself stays private and is only a *client dependency* (staging API) — never copied, never vendored.
 
@@ -27,15 +27,17 @@ crowdpilot/
 │  │  └─ src/features/
 │  │     ├─ config/       # Env → AppConfig two-layer pattern (fail loud at boot)
 │  │     ├─ system/       # /health
+│  │     ├─ auth/         # email OTP sign-in → session bearer tokens
 │  │     ├─ qloo/         # QlooService (taste brain)
 │  │     ├─ onscript/     # OnscriptService (publish hands)
 │  │     ├─ llm/          # LlmService (agent loop + tool orchestration)
-│  │     └─ profile/      # session taste-profile store (in-memory)
+│  │     └─ profile/      # taste-profile store (per session/user)
 │  └─ web/                # TanStack Start app (deployable to Vercel)
 ├─ packages/
 │  ├─ api/                # HttpApi definition: route groups, one file/endpoint
 │  ├─ api-client-types/   # generated: openapi-typescript → build/types.ts
-│  ├─ api-client/         # createFetchClient + createTanstackQueryClient (+ makeApiClient for Effect consumers)
+│  ├─ api-client/         # createFetchClient + createTanstackQueryClient (+ makeApiClient bearer for web sessions)
+│  ├─ sql/                # kysely db + types + migrations (users, sessions, connected_accounts)
 │  └─ domain/             # shared effect-Schema types (stub, grow as needed)
 ├─ infra/                 # home-manager (in-repo): services/crowdpilot unit, sops secrets, deploy timer
 ├─ nix/                   # backend bundle derivation (copied shape from beta-lyfe)
@@ -65,7 +67,8 @@ Convention per route group: `src/<Group>/index.ts` (HttpApiGroup) + one `<Endpoi
     error.ts       # Data.TaggedError classes
     mock.ts        # fixture-backed layer (Qloo before key arrives; Onscript before spike)
   ```
-- **Auth**: no user accounts. One thin bearer middleware (`OWNER_TOKEN` env) guarding mutating endpoints (publish, profile write). Judge-facing reads stay open. Same `HttpApiMiddleware.Tag` shape as Onscript's, one Live impl.
+- **Auth**: email OTP (Resend — one API key, no SMTP server) → `sessions` row → bearer token stored in **localStorage** (cross-origin Vercel→VPS makes cookies awkward; XSS accepted at hackathon scope). Publish + profile-write endpoints require a session; connecting accounts requires a session (OAuth happens through Onscript's flows; we store only the mapping user ↔ Onscript account id/platform). No orgs, no billing, no password resets.
+- **Auth middleware**: same `HttpApiMiddleware.Tag` shape as Onscript's, one Live impl (`SessionMiddleware`) reading the bearer token → `sessions` lookup → provides `CurrentUser`.
 - **Evidence rule**: every Qloo call appends `{request, response, spanId}` to the session's evidence log — feeds citations in chat and the with/without-Qloo panel.
 
 ## Agent layer
@@ -84,6 +87,13 @@ list_connected_accounts()
 
 Side-by-side panel: same prompt re-run with tools disabled; both transcripts cached server-side per session.
 
+## Persistence
+
+- `packages/sql`: kysely client + schema types + SQL migrations (single runner script, run by ExecStartPre wrapper like beta-lyfe's migrate bundle).
+- Tables (minimal): `users` (id, email, created_at), `sessions` (token_hash, user_id, expires_at), `connected_accounts` (user_id, platform, onscript_account_id, connected_at).
+- Taste profiles: stored as JSONB on `users` (rebuildable from Qloo anytime) — no separate profiling infra.
+- Seed script: demo persona user + pre-connected demo account (publish spike and judge demo run on this without auth).
+
 ## Qloo integration
 
 - Base URL `https://hackathon.api.qloo.com`, `X-Api-Key` header only.
@@ -97,6 +107,7 @@ Side-by-side panel: same prompt re-run with tools disabled; both transcripts cac
 - Endpoints: `POST /posts` (DRAFT/PUBLISHING/SCHEDULED, per-platform variants), `POST /posts/:id/publish`, `DELETE /posts/:id`, `GET /integrations/connected-accounts`, `GET /storage/signature` (Cloudinary upload).
 - Auth: opaque bearer **session token** (email-OTP sign-in, scripted once per deploy; no Onscript code changes). Env: `ONSCRIPT_BASE_URL`, `ONSCRIPT_SESSION_TOKEN`.
 - Watch `402` plan limits on the demo account.
+- Connect-your-own flow (P1): user signs in here → deep-link to Onscript's per-platform OAuth initiate → after callback, `GET /integrations/connected-accounts` maps new accounts onto `connected_accounts` rows for that user.
 
 ## Frontend
 
@@ -119,7 +130,7 @@ Deploy flow: push main → CI builds + pushes Cachix → VPS timer pulls this re
 
 ## Env vars
 
-Backend (sops dotenv in infra repo): `PORT=1050`, `NODE_ENV=production`, `QLOO_API_KEY`, `QLOO_BASE_URL=https://hackathon.api.qloo.com`, `ONSCRIPT_BASE_URL=<staging>`, `ONSCRIPT_SESSION_TOKEN`, `OWNER_TOKEN`, `LLM_API_KEY`, `LLM_BASE_URL` (if non-default).
+Backend (sops dotenv in `infra/`): `PORT=1050`, `NODE_ENV=production`, `DATABASE_URL=postgres://crowdpilot:…@127.0.0.1:5432/crowdpilot`, `QLOO_API_KEY`, `QLOO_BASE_URL=https://hackathon.api.qloo.com`, `ONSCRIPT_BASE_URL=<staging>`, `ONSCRIPT_SESSION_TOKEN`, `RESEND_API_KEY`, `LLM_API_KEY`, `LLM_BASE_URL` (if non-default).
 Frontend (Vercel/workflow): `VITE_API_URL`.
 
 ## Risks
@@ -131,6 +142,8 @@ Frontend (Vercel/workflow): `VITE_API_URL`.
 | Onscript session token expiry mid-demo | Refresh script + deploy checklist; re-login is 2 min |
 | 402 plan limits on demo account | Verify headroom D1; backup account |
 | Qloo place coverage thin (Lagos) | D2 check; NYC fallback persona is config-only |
-| Public backend abuse of publish | OWNER_TOKEN on mutating endpoints; demo persona read-only |
+| Public backend abuse of publish | publish requires a session; demo persona read-only |
 | Scope creep | P2 = rewards only; freeze D9 hard |
 | Plaintext secret lands in the public repo | sops-only rule under `infra/` + CI guard |
+| OTP email deliverability / spam folder | Resend + verified subdomain sender; seed-session fallback for the owner demo path |
+| DB forgot to migrate on deploy | ExecStartPre migrate wrapper (beta-lyfe pattern) + health probe |

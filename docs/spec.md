@@ -21,7 +21,8 @@ A chat co-pilot. In one conversation the owner goes from "this is my business an
 |---|---|---|
 | P0 | Taste-profile builder (entities + tags → Qloo profile card) | The product's brain; profile is reusable across chats |
 | P0 | Chat agent with Qloo tools (decide + create) | Every answer cites Qloo evidence |
-| P0 | Publish via Onscript (X, IG, FB) | Demo account pre-connected; image posts via Cloudinary if cheap |
+| P0 | Publish via Onscript (X, IG, FB) | Demo persona account pre-connected + seeded session; image posts via Cloudinary if cheap |
+| P1 | Real auth (email OTP) + connect-your-own socials | Sign in → connect X/IG via Onscript OAuth → posts ship to *your* account. The judge-wows-more moment; auth gates publish
 | P0 | Side-by-side panel: LLM-only vs Qloo-grounded answer | Table stakes in this field — ~5 competitors promise it |
 | P1 | "What's happening" feed: trending artists, new spots nearby, events to ride | Qloo-native alerts; the pitch's 4th clause |
 | P1 | Preloaded demo persona ("try as demo café") | Judges must reach wow in <60s, no signup |
@@ -44,8 +45,8 @@ A chat co-pilot. In one conversation the owner goes from "this is my business an
 
 ## Out of scope (do not build)
 
-- Onscript code changes (feature-flagged service-token path: only if auth blocks demo — last resort)
-- Multi-tenant auth / user accounts beyond demo persona + owner session
+- Onscript code changes (OAuth flows already exist there; we deep-link and map results)
+- Multi-tenant features: orgs, billing, password resets, team accounts — sessions are single-user, that's all
 - Analytics, follower data, engagement metrics (Qloo has none; don't fake it)
 - RSVP/events marketplace, inventory systems, payments
 - Mobile apps; i18n beyond EN
