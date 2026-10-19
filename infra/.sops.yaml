@@ -1,0 +1,7 @@
+# sops creation rule. Owner one-time step: generate a key pair
+# (`age-keygen -o ~/.config/sops/age/keys.txt`), paste the printed PUBLIC key
+# below, then encrypt secrets (docs/deploy-notes.md § Secrets). The private
+# half lives only on machines that decrypt: yours (to re-encrypt) + the VPS.
+creation_rules:
+  - path_regex: secrets\.env$
+    age: age1REPLACE_WITH_YOUR_AGE_PUBLIC_KEY

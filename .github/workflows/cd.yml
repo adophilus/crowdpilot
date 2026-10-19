@@ -1,0 +1,38 @@
+name: CD
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: cd-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: cachix/install-nix-action@v30
+        with:
+          nix_path: nixpkgs=channel:nixos-26.05
+          extra_nix_config: |
+            accept-flake-config = true
+
+      - name: Build backend package (x86_64-linux)
+        run: nix --accept-flake-config build .#packages.x86_64-linux.crowdpilot-backend
+
+      - name: Push to cachix
+        if: env.CACHIX_AUTH_TOKEN != ''
+        uses: cachix/cachix-action@v15
+        with:
+          name: adophilus
+          authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
+
+      # Nothing else: the VPS crowdpilot-deploy timer pulls this repo every
+      # 5 minutes and home-manager-switches to origin/main. The new package
+      # substitutes from cachix, ExecStartPre runs migrations, then the API
+      # restarts with the new bundle.

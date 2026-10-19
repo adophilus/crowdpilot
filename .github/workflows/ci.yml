@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    env:
+      CI: "1"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        # version comes from the packageManager field in package.json
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      # Secrets-in-public-repo rule: only sops-encrypted env files may live
+      # under infra/ (templates and nix excluded by name).
+      - name: infra/ env files must be sops-encrypted
+        run: |
+          while IFS= read -r -d '' f; do
+            grep -q 'sops' "$f" || { echo "NOT sops-encrypted: $f"; exit 1; }
+          done < <(find infra -type f -name '*.env' ! -name '*.template' -print0)

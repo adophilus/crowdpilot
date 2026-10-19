@@ -1,9 +1,11 @@
 node_modules/
 build/
 dist/
+apps/backend/migrations/
 .nx/
 *.tsbuildinfo
 .env
 .env.*
 !.env.development.example
 .DS_Store
+result
