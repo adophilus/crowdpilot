@@ -4,15 +4,15 @@ Today = Sun Oct 19. Deadline **Thu Oct 30, 23:45 EDT** (submit Wed Oct 29 EOD �
 
 ## Critical path
 
-**Qloo API key → Qloo tools → agent loop → demo.** Everything else is parallelizable or cuttable. The key request is the only externally-throttled step.
+**Qloo API key → Qloo tools → agent loop → demo.** Everything else is parallelizable or cuttable. The key request is the only externally-throttled step. Stack: pnpm/nx monorepo, Effect backend on VPS (port 1050), TanStack Start web on Vercel — see architecture.md.
 
 ## Milestones
 
 | Day | Date | Milestone | Done means |
 |---|---|---|---|
-| D1 | Sun 19 | Kickoff + unblock | Repo scaffolded, key form submitted, Onscript staging reachable + demo account has connected X/IG/FB + no 402s, Vercel project created |
-| D2 | Mon 20 | Qloo client + profile builder | `/search`, `/v2/tags`, `/v2/insights` wrapped; profile card renders from real (or fixture) data; **Lagos coverage verified** (fallback NYC) |
-| D3 | Tue 21 | Publish spike | `POST /posts` → live post on demo X account end-to-end (the riskiest integration proven early) |
+| D1 | Sun 19 | Kickoff + unblock | Monorepo skeleton live (typed-API chain green: api → openapi → client-types → client → backend `/health`), key form submitted, Onscript staging reachable + demo account has connected X/IG/FB + no 402s, Vercel project created |
+| D2 | Mon 20 | Qloo client + profile builder + deploy wiring | Qloo feature (mock + live layers); profile card renders; **Lagos coverage verified** (fallback NYC); nix bundle builds, CI + infra repo + Caddy vhost wired, backend reachable at `api.<domain>` |
+| D3 | Tue 21 | Publish spike | `POST /posts` → live post on demo X account end-to-end from the deployed backend (the riskiest integration proven early) |
 | D4–5 | Wed 22–Thu 23 | Agent loop + decide tools | Chat with `qloo_*` tools working; answers cite evidence; profile persists per session |
 | D6 | Fri 24 | Create + ship | Draft-post flow with grounding notes; publish from chat; image post if cheap |
 | D7 | Sat 25 | Side-by-side panel + demo persona | LLM-vs-Qloo toggle works; "Try demo café" path < 60s to wow |
@@ -23,14 +23,15 @@ Today = Sun Oct 19. Deadline **Thu Oct 30, 23:45 EDT** (submit Wed Oct 29 EOD �
 
 ## Parallel lanes (dispatch order)
 
-1. **Scaffold lane** (D1, worker): Next.js app, env plumbing, deploy pipeline to Vercel on day one.
-2. **Qloo lane** (D2–4, worker): client + tools + fixtures; blocked only by key for live calls, not for code.
-3. **Onscript lane** (D3, worker): publish spike against staging.
-4. **Agent lane** (D4–6, main/worker): tool-calling loop, prompts, citation discipline.
-5. **UI lane** (D7–8, designer): chat, profile card, evidence panel, demo-persona flow.
-6. **Review gate** (D8, oracle): pre-freeze review of agent prompts + evidence quality.
+1. **Scaffold lane** (D1, worker): monorepo skeleton per architecture.md — workspace files, `packages/api` (+System group), `api-client-types`, `api-client`, `apps/backend` (config pattern, bootstrap, `/health`), `apps/web` (TanStack Start starter hitting `/health`).
+2. **Deploy lane** (D2, worker): flake + backend-bundle.nix, `cd.yml`/`production.yaml`, `crowdpilot-infra` (service unit + sops env), vps repo (user + Caddy vhost). Needs from owner: domain, cachix choice, infra repo name. Plan-B: plain systemd unit if Nix stalls.
+3. **Qloo lane** (D2–4, worker): qloo feature (mock + live layers) + profile endpoints; blocked only by key for live calls, not for code.
+4. **Onscript lane** (D3, worker): onscript feature + publish spike against staging from the deployed backend.
+5. **Agent lane** (D4–6, main/worker): llm feature, tool loop, prompts, citation discipline, SSE endpoint.
+6. **UI lane** (D7–8, designer): chat, profile card, evidence panel, demo-persona flow.
+7. **Review gate** (D8, oracle): pre-freeze review of agent prompts + evidence quality.
 
-Write ownership: lanes touch disjoint dirs (`src/lib/qloo`, `src/lib/onscript`, `src/app/...`) — no overlaps, parallel-safe.
+Write ownership: lanes touch disjoint dirs (`features/{qloo,onscript,llm}`, `packages/api/src/<Group>`, `apps/web/...`, nix/CI files) — no overlaps, parallel-safe.
 
 ## Risk register (top 5)
 
@@ -39,6 +40,7 @@ Write ownership: lanes touch disjoint dirs (`src/lib/qloo`, `src/lib/onscript`, 
 3. **Lagos place-data thin** — D2 check; NYC fallback costs nothing (persona is config).
 4. **Scope creep** — P2 items are rewards, not obligations. Freeze is D9, no exceptions.
 5. **Judge-flow flop** (demo persona >60s to wow) — D7 rehearsal gates the polish day.
+6. **Nix packaging of fresh backend stalls** — bundle.nix is a near-verbatim adapt of beta-lyfe's; plan-B is a plain systemd unit + rsync if it eats >1 day.
 
 ## Submission checklist
 

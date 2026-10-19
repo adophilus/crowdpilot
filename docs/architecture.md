@@ -1,72 +1,133 @@
 # CrowdPilot — Architecture
 
-## Stack (default unless changed)
+> Full recon artifacts: Onscript skeleton map + VPS deploy recipe at
+> `.pi/agent/sessions/.../subagent-artifacts/outputs/{8ee04ed9…,6229a2b2…}/context.md` (paths in session log).
+> This doc is the operating summary; the artifacts are the deep reference.
 
-- **Next.js (App Router) + TypeScript**, hosted on **Vercel** — chat UI + API routes in one deployable unit.
-- **Vercel AI SDK** for the agent loop (tool-calling streaming chat). Any capable LLM works; pin one env var.
-- **Qloo client**: thin typed wrapper over the hackathon base URL `https://hackathon.api.qloo.com`. Server-side only; key never reaches the browser.
-- **Onscript**: existing staging deployment, called as a service. Session-token bearer auth (see below).
-- **Persistence: none.** Demo persona + current session state live server-side in memory / cookies. No DB. Revisit only if scheduled posts (P2) need durability.
+## Stack
 
-## Components
+| Layer | Tech | Runs on |
+|---|---|---|
+| Monorepo | pnpm + nx (task runner/cacher only) | — |
+| Backend | Effect-TS (`@effect/platform` HttpApi), esbuild-bundled single `.mjs` | Personal VPS (NixOS, systemd user service, port **1050**) |
+| Frontend | TanStack Start | Vercel (prebuilt CLI deploys) |
+| Typed APIs | `packages/api` (Effect HttpApi) → `openapi.json` → `api-client-types` → `api-client` (openapi-fetch + openapi-react-query) | — |
+| Lint/format | Biome (single root config) | — |
+| Runtime | Node 22 (`.nvmrc`), tsx for dev | — |
+| Persistence | **None.** In-memory + cookies. No DB, no migrations. | — |
+
+Fresh code throughout, structured in Onscript's image. Onscript itself stays private and is only a *client dependency* (staging API) — never copied, never vendored.
+
+## Repo layout
 
 ```
-[Chat UI]──(stream)──[Agent route: LLM + tools]
-                          ├─ Qloo tools ──── Qloo API (hackathon.api.qloo.com)
-                          ├─ Publish tool ── Onscript staging API
-                          └─ Profile store ── (in-memory / cookie)
+crowdpilot/
+├─ apps/
+│  ├─ backend/            # Effect HttpApi server (deployable to VPS)
+│  │  └─ src/features/
+│  │     ├─ config/       # Env → AppConfig two-layer pattern (fail loud at boot)
+│  │     ├─ system/       # /health
+│  │     ├─ qloo/         # QlooService (taste brain)
+│  │     ├─ onscript/     # OnscriptService (publish hands)
+│  │     ├─ llm/          # LlmService (agent loop + tool orchestration)
+│  │     └─ profile/      # session taste-profile store (in-memory)
+│  └─ web/                # TanStack Start app (deployable to Vercel)
+├─ packages/
+│  ├─ api/                # HttpApi definition: route groups, one file/endpoint
+│  ├─ api-client-types/   # generated: openapi-typescript → build/types.ts
+│  ├─ api-client/         # createFetchClient + createTanstackQueryClient (+ makeApiClient for Effect consumers)
+│  └─ domain/             # shared effect-Schema types (stub, grow as needed)
+├─ nix/                   # backend bundle derivation (copied shape from beta-lyfe)
+├─ flake.nix              # packages backend, exports overlay for infra repo
+└─ .github/workflows/     # ci.yml, cd.yml (cachix + infra lock bump), production.yaml (Vercel)
 ```
+
+Omitted from Onscript's skeleton: sql-kysely, observability/OTel, auth internals, payments, workers/crons, docs app, Docker/nginx.
+
+## Typed-API chain (nx `^build` keeps order)
+
+1. `packages/api` build → `OpenApi.fromApi(Api)` → `build/openapi.json`
+2. `packages/api-client-types` build → `build/types.ts`
+3. `packages/api-client` → typed fetch/query clients for `apps/web`
+4. Backend handlers: `HttpApiBuilder.group(Api, '<Group>', …)` per feature, merged in `ApiEndpointLayer`
+
+Convention per route group: `src/<Group>/index.ts` (HttpApiGroup) + one `<Endpoint>.ts` (schemas + endpoint). Backend bootstrap: `HttpApiBuilder.serve(HttpMiddleware.logger)` + CORS + port from `AppConfig` via `Layer.unwrapEffect`. DepLayer rule: consumers merged **before** providers in `provideMerge` chains.
+
+## Backend conventions
+
+- **Config**: raw `EnvSchema` (Effect Config, SCREAMING_CASE, decode fails loudly at boot) → derived `AppConfigSchema` (nested, camelCase). Nothing reads `process.env` directly.
+- **External clients** (Qloo/Onscript/LLM all follow the Neynar pattern):
+  ```
+  features/<client>/service/
+    interface.ts   # Context.Tag, methods → Effect<Success, TaggedError>
+    live.ts        # Layer.effect; config is the only dependency; Effect.tryPromise + Effect.withSpan per method
+    error.ts       # Data.TaggedError classes
+    mock.ts        # fixture-backed layer (Qloo before key arrives; Onscript before spike)
+  ```
+- **Auth**: no user accounts. One thin bearer middleware (`OWNER_TOKEN` env) guarding mutating endpoints (publish, profile write). Judge-facing reads stay open. Same `HttpApiMiddleware.Tag` shape as Onscript's, one Live impl.
+- **Evidence rule**: every Qloo call appends `{request, response, spanId}` to the session's evidence log — feeds citations in chat and the with/without-Qloo panel.
+
+## Agent layer
+
+`features/llm` owns the tool-calling loop; `apps/web` consumes it via SSE stream. Tools = thin wrappers over QlooService/OnscriptService/profile store:
+
+```ts
+qloo_resolve(query, type?)                      // /search
+qloo_profile(entityIds, tagIds?)                // insights + taste analysis → crowd profile card
+qloo_affinities(profile, targetType, {near?, tags?})           // ranked picks + evidence
+qloo_scene(near, "trending"|"events"|"new_spots")              // P1 feed
+draft_post(platforms[], text, mediaIds?)        // DRAFT via Onscript
+publish_post(platforms[], text, mediaIds?, scheduleAt?)        // requires owner token
+list_connected_accounts()
+```
+
+Side-by-side panel: same prompt re-run with tools disabled; both transcripts cached server-side per session.
 
 ## Qloo integration
 
-- Endpoints used: `GET /search` (entity IDs), `GET /v2/tags` (tag IDs), `GET /v2/insights` (affinities; taste analysis via tag metadata), optional geo filters for places.
-- `filter.type` whitelist: `urn:entity:artist|brand|place|movie|tv_show|book|podcast|video_game|destination|person`. Food = `place`/`brand`, music = `artist`. Never `/recommendations` (legacy, unsupported).
-- **Silent-ignore gotcha:** invalid params are dropped without error — validate against the Entity Type Parameter Guide, and log every request/response pair (also feeds the evidence panel + audit trail).
-- Empty `entities` array ≠ error: usually invalid param-for-type or no data for region. Surface a friendly retry.
-- Auth: `X-Api-Key` header only. Private server-side caching allowed (and wanted); **never commit cached Qloo data to the public repo** (rules violation).
+- Base URL `https://hackathon.api.qloo.com`, `X-Api-Key` header only.
+- `filter.type` whitelist: `artist|brand|place|movie|tv_show|book|podcast|video_game|destination|person` (food → `place`/`brand`, music → `artist`). Never `/recommendations`.
+- Invalid params **silently ignored** → validate against the Entity Type Parameter Guide; log every request/response.
+- Empty `entities` ≠ error → friendly retry, suspect region coverage first.
+- Private server-side caching allowed; **never commit Qloo response data** (rules violation).
 
-## Agent tool schemas (first pass)
+## Onscript integration (client of staging)
 
-```ts
-// Qloo tools
-qloo_resolve(query: string, type?: EntityType): Entity[]            // /search
-qloo_profile(entityIds: string[], tagIds?: string[]): Profile        // insights+tags → crowd taste card
-qloo_affinities(profile, targetType: EntityType, opts?: { near?: LatLng, tags?: string[] }): ScoredEntity[]
-qloo_scene(near: LatLng, kind: "trending" | "events" | "new_spots"): SceneItem[]   // P1 feed
+- Endpoints: `POST /posts` (DRAFT/PUBLISHING/SCHEDULED, per-platform variants), `POST /posts/:id/publish`, `DELETE /posts/:id`, `GET /integrations/connected-accounts`, `GET /storage/signature` (Cloudinary upload).
+- Auth: opaque bearer **session token** (email-OTP sign-in, scripted once per deploy; no Onscript code changes). Env: `ONSCRIPT_BASE_URL`, `ONSCRIPT_SESSION_TOKEN`.
+- Watch `402` plan limits on the demo account.
 
-// Onscript tool
-publish_post(platforms: ("x"|"instagram"|"facebook")[], text: string, mediaIds?: string[], scheduleAt?: string): { postId, status }
-// + list_connected_accounts() so the UI can show targets before publishing
-```
+## Frontend
 
-Rules: every tool result carries its raw Qloo evidence (scores/tags) into the transcript so drafts can cite it; publish requires explicit user confirmation in-chat.
+TanStack Start (`apps/web`), `NITRO_PRESET=vercel`, typed via `api-client` + `openapi-react-query`. Public env `VITE_API_URL=https://<api-domain>` inlined at build. Screens: onboarding/picker → profile card → chat (streaming) → evidence panel (with/without toggle) → demo-persona button. Designed judge-flow-first (spec.md demo script).
 
-## Onscript integration (from recon of `packages/api`, `main` worktree)
+## Deployment (beta-lyfe pattern, three repos)
 
-- `POST /posts` — body with status `DRAFT | PUBLISHING | SCHEDULED` and per-platform variants (`PlatformPostVariant`: TWITTER/FACEBOOK/INSTAGRAM = text + media_ids).
-- `POST /posts/:id/publish`, `DELETE /posts/:id`, retry support.
-- `GET /integrations/connected-accounts` — list targets.
-- `GET /storage/signature` → Cloudinary signed upload for media → pass `media_ids`.
-- **Auth:** opaque bearer session token (email-OTP/Google sign-in), DB-backed; **no API keys**. Strategy: scripted one-time sign-in on deploy → store session token as an env secret; refresh when it expires. Do NOT modify Onscript for this (last resort only, see spec out-of-scope).
-- FB/IG publishing rides Onscript's PostForMe integration; X is direct. Plan limits → watch for `402`; demo account must have headroom.
-- Env: `ONSCRIPT_BASE_URL` (staging), `ONSCRIPT_SESSION_TOKEN`, and platform creds stay server-side in the Onscript deployment — our app only needs base URL + session token.
+| Repo | Changes |
+|---|---|
+| `crowdpilot` (public, MIT) | flake.nix + `nix/packages/backend-bundle.nix` (esbuild, no pg-native) → `packages.x86_64-linux.crowdpilot-backend`; `cd.yml` (nix build → cachix push → bump infra flake.lock); `production.yaml` (Vercel prebuilt from temp dir) |
+| `crowdpilot-infra` (private) | home-manager flake: app repo as overlay input; `services/crowdpilot/default.nix` (systemd **user** unit, sops `EnvironmentFile`, ExecStart = server wrapper, Restart=on-failure); `services/crowdpilot/secrets.env` (sops: `PORT=1050`, `NODE_ENV=production`, `QLOO_API_KEY`, `ONSCRIPT_*`, `OWNER_TOKEN`, `LLM_API_KEY`); generic `deploy/` timer (5-min pull, switch on rev change) |
+| `vps/contabo` (personal) | users entry (system user, linger, deploy key, trusted-users) + one Caddy vhost `api.<domain>` → `127.0.0.1:1050` |
 
-## Evidence panel (with/without Qloo)
+Deploy flow: push main → CI builds via Cachix → bumps infra lock → VPS timer `home-manager switch` → Caddy TLS automatic. No SSH creds in CI (pull model).
 
-Same user question runs twice: once with tools, once LLM-only (tools disabled). Both answers render side-by-side with the Qloo call log under the grounded one. Cache both — judges will flip this toggle repeatedly.
+**Gotchas (from beta-lyfe recon):** secrets-only change deploys but does NOT restart the unit — restart manually and verify; deploy timer must not be `WantedBy=default.target` (loop); linger=true mandatory; cachix required (else full pnpm rebuild per deploy); cachix substituters must also be in user's `~/.config/nix/nix.conf` (trusted-users); first activation needs `XDG_RUNTIME_DIR`/`DBUS_SESSION_BUS_ADDRESS` prefix under runuser.
 
-## Deployment
+**Plan-B (only if Nix packaging stalls >1 day):** plain systemd user unit running `node dist/start.mjs`, rsync/scp deploy, same Caddy vhost. Same box, less reproducibility.
 
-- Vercel (hobby) + env vars: `QLOO_API_KEY`, `QLOO_BASE_URL=hackathon.api.qloo.com`, `ONSCRIPT_BASE_URL`, `ONSCRIPT_SESSION_TOKEN`, `LLM_API_KEY`.
-- Custom README with: live demo URL, "try demo persona" note, architecture blurb, MIT license.
-- Public repo contains **only** this app. Onscript stays private; it's a third-party service from the repo's perspective.
+## Env vars
+
+Backend (sops dotenv in infra repo): `PORT=1050`, `NODE_ENV=production`, `QLOO_API_KEY`, `QLOO_BASE_URL=https://hackathon.api.qloo.com`, `ONSCRIPT_BASE_URL=<staging>`, `ONSCRIPT_SESSION_TOKEN`, `OWNER_TOKEN`, `LLM_API_KEY`, `LLM_BASE_URL` (if non-default).
+Frontend (Vercel/workflow): `VITE_API_URL`.
 
 ## Risks
 
 | Risk | Mitigation |
 |---|---|
-| Qloo key arrives late (manual provisioning, ~days) | Submitted D1; build against recorded fixtures until then; every tool behind a thin client |
-| Qloo place coverage thin for Lagos | Verify D2 with key; fallback demo persona = NYC |
-| Onscript session token expiry mid-demo | Refresh script; re-login checklist in deploy notes |
-| 402 plan limit on demo account | Confirm headroom D1; second backup account |
-| Serverless in-memory state resets | Profile serialised to cookie; demo persona deterministic from fixtures |
+| Qloo key arrives late | Mock layer (fixtures) from day one; live swap is a config change |
+| Nix packaging of fresh backend stalls | Plan-B systemd fallback; bundle.nix is a near-verbatim adapt |
+| Onscript session token expiry mid-demo | Refresh script + deploy checklist; re-login is 2 min |
+| 402 plan limits on demo account | Verify headroom D1; backup account |
+| Qloo place coverage thin (Lagos) | D2 check; NYC fallback persona is config-only |
+| Public backend abuse of publish | OWNER_TOKEN on mutating endpoints; demo persona read-only |
+| Scope creep | P2 = rewards only; freeze D9 hard |
