@@ -26,13 +26,13 @@ export const LlmConfigSchema = Schema.Struct({
   baseUrl: Schema.UndefinedOr(Schema.String)
 })
 
-export const AppConfigSchema = Schema.Class<AppConfigSchema>('AppConfigSchema')(
-  {
-    environment: EnvironmentConfigSchema,
-    server: ServerConfigSchema,
-    qloo: QlooConfigSchema,
-    onscript: OnscriptConfigSchema,
-    ownerToken: Schema.String,
-    llm: LlmConfigSchema
-  }
-)
+export class AppConfigSchema extends Schema.Class<AppConfigSchema>(
+  'AppConfigSchema'
+)({
+  environment: EnvironmentConfigSchema,
+  server: ServerConfigSchema,
+  qloo: QlooConfigSchema,
+  onscript: OnscriptConfigSchema,
+  ownerToken: Schema.String,
+  llm: LlmConfigSchema
+}) {}
