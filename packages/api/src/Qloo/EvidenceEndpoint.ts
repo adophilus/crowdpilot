@@ -16,7 +16,7 @@ export class EvidenceSuccess extends Schema.TaggedClass<EvidenceSuccess>()(
 
 const EvidenceEndpoint = HttpApiEndpoint.get(
   'qlooEvidence',
-  '/qloo/evidence/{refId}'
+  '/qloo/evidence/:refId'
 )
   .setPath(Schema.Struct({ refId: Schema.String }))
   .addSuccess(EvidenceSuccess)
