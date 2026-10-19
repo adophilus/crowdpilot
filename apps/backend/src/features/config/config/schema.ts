@@ -24,6 +24,7 @@ export const SmtpConfigSchema = Schema.Struct({
 
 export const QlooConfigSchema = Schema.Struct({
   apiKey: Schema.String,
+  mock: Schema.Boolean,
   baseUrl: Schema.String
 })
 

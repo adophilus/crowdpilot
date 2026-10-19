@@ -8,6 +8,8 @@ import { AppConfig } from './features/config'
 import { AuthApiLive, SessionMiddlewareLive } from './features/auth'
 import { AuthLive } from './features/auth'
 import { SystemApiLive } from './features/system/route'
+import { QlooApiLive, QlooServiceAutoLive } from './features/qloo'
+import { EvidenceStoreLive } from './features/evidence'
 
 // Consumers merged before providers (Layer.provideMerge ordering rule).
 export const AuthDepLayer = Layer.empty.pipe(
@@ -18,14 +20,21 @@ export const AuthDepLayer = Layer.empty.pipe(
   )
 )
 
+export const QlooDepLayer = Layer.empty.pipe(
+  Layer.provideMerge(QlooServiceAutoLive),
+  Layer.provideMerge(EvidenceStoreLive)
+)
+
 export const ApiEndpointLayer = AuthApiLive.pipe(
-  Layer.provideMerge(SystemApiLive)
+  Layer.provideMerge(SystemApiLive),
+  Layer.provideMerge(QlooApiLive)
 )
 
 export const ApiLive = HttpApiBuilder.api(Api).pipe(
   Layer.provide(ApiEndpointLayer),
   Layer.provide(SessionMiddlewareLive),
-  Layer.provide(AuthDepLayer)
+  Layer.provide(AuthDepLayer),
+  Layer.provide(QlooDepLayer)
 )
 
 export const HttpLive = HttpApiBuilder.serve(HttpMiddleware.logger).pipe(

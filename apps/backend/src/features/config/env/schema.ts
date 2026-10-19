@@ -9,6 +9,7 @@ export class EnvSchema extends Schema.Class<EnvSchema>('EnvSchema')({
   SMTP_USER: Schema.String,
   SMTP_PASS: Schema.String,
   QLOO_API_KEY: Schema.String,
+  QLOO_MOCK: Schema.Boolean,
   QLOO_BASE_URL: Schema.String,
   ONSCRIPT_BASE_URL: Schema.String,
   ONSCRIPT_SESSION_TOKEN: Schema.String,

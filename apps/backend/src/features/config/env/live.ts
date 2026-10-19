@@ -18,6 +18,9 @@ export const EnvLive = Layer.effect(
       SMTP_USER: yield* Config.string('SMTP_USER'),
       SMTP_PASS: yield* Config.string('SMTP_PASS'),
       QLOO_API_KEY: yield* Config.string('QLOO_API_KEY'),
+      QLOO_MOCK: yield* Config.boolean('QLOO_MOCK').pipe(
+        Config.withDefault(true)
+      ),
       QLOO_BASE_URL: yield* Config.string('QLOO_BASE_URL').pipe(
         Config.withDefault('https://hackathon.api.qloo.com')
       ),

@@ -29,6 +29,7 @@ export const AppConfigLive = Layer.effect(
       },
       qloo: {
         apiKey: env.QLOO_API_KEY,
+        mock: env.QLOO_MOCK,
         baseUrl: env.QLOO_BASE_URL
       },
       onscript: {
