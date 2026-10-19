@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json.schemastore.org/package.json",
+  "name": "@crowdpilot/backend",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --env-file-if-exists=../../.env.development ./scripts/start.ts",
+    "start": "tsx --env-file-if-exists=../../.env.development ./scripts/start.ts",
+    "typecheck": "tsc",
+    "lint": "biome lint"
+  },
+  "dependencies": {
+    "@crowdpilot/api": "workspace:^",
+    "@crowdpilot/domain": "workspace:^",
+    "@effect/platform": "^0.82.8",
+    "@effect/platform-node": "^0.81.5",
+    "effect": "^3.16.5"
+  }
+}

@@ -1,0 +1,9 @@
+packages:
+  - ./packages/*
+  - ./apps/backend
+  - ./apps/web
+allowBuilds:
+  '@parcel/watcher': set this to true or false
+  esbuild: true
+  msgpackr-extract: set this to true or false
+  nx: false

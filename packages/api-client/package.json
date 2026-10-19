@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json.schemastore.org/package.json",
+  "name": "@crowdpilot/api-client",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc",
+    "lint": "biome lint"
+  },
+  "dependencies": {
+    "@crowdpilot/api": "workspace:^",
+    "@crowdpilot/api-client-types": "workspace:^",
+    "@effect/platform": "^0.82.8",
+    "effect": "^3.16.5",
+    "openapi-fetch": "^0.17.0",
+    "openapi-react-query": "^0.5.1",
+    "openapi-typescript": "^7.10.1"
+  }
+}

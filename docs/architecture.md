@@ -67,7 +67,7 @@ Convention per route group: `src/<Group>/index.ts` (HttpApiGroup) + one `<Endpoi
     error.ts       # Data.TaggedError classes
     mock.ts        # fixture-backed layer (Qloo before key arrives; Onscript before spike)
   ```
-- **Auth**: email OTP (Resend — one API key, no SMTP server) → `sessions` row → bearer token stored in **localStorage** (cross-origin Vercel→VPS makes cookies awkward; XSS accepted at hackathon scope). Publish + profile-write endpoints require a session; connecting accounts requires a session (OAuth happens through Onscript's flows; we store only the mapping user ↔ Onscript account id/platform). No orgs, no billing, no password resets.
+- **Auth**: email OTP sent from `hackathons@adophilus.com` via Purelymail SMTP (domain already fully on Purelymail — MX/SPF/DKIM/DMARC aligned, no DNS work; transactional mail is within their ToS) → `sessions` row → bearer token stored in **localStorage** (cross-origin Vercel→VPS makes cookies awkward; XSS accepted at hackathon scope). Publish + profile-write endpoints require a session; connecting accounts requires a session (OAuth happens through Onscript's flows; we store only the mapping user ↔ Onscript account id/platform). No orgs, no billing, no password resets.
 - **Auth middleware**: same `HttpApiMiddleware.Tag` shape as Onscript's, one Live impl (`SessionMiddleware`) reading the bearer token → `sessions` lookup → provides `CurrentUser`.
 - **Evidence rule**: every Qloo call appends `{request, response, spanId}` to the session's evidence log — feeds citations in chat and the with/without-Qloo panel.
 
@@ -130,7 +130,7 @@ Deploy flow: push main → CI builds + pushes Cachix → VPS timer pulls this re
 
 ## Env vars
 
-Backend (sops dotenv in `infra/`): `PORT=1050`, `NODE_ENV=production`, `DATABASE_URL=postgres://crowdpilot:…@127.0.0.1:5432/crowdpilot`, `QLOO_API_KEY`, `QLOO_BASE_URL=https://hackathon.api.qloo.com`, `ONSCRIPT_BASE_URL=<staging>`, `ONSCRIPT_SESSION_TOKEN`, `RESEND_API_KEY`, `LLM_API_KEY`, `LLM_BASE_URL` (if non-default).
+Backend (sops dotenv in `infra/`): `PORT=1050`, `NODE_ENV=production`, `DATABASE_URL=postgres://crowdpilot:…@127.0.0.1:5432/crowdpilot`, `QLOO_API_KEY`, `QLOO_BASE_URL=https://hackathon.api.qloo.com`, `ONSCRIPT_BASE_URL=<staging>`, `ONSCRIPT_SESSION_TOKEN`, `SMTP_HOST=smtp.purelymail.com`, `SMTP_PORT=587`, `SMTP_USER=hackathons@adophilus.com`, `SMTP_PASS=<app/mailbox password>`, `LLM_API_KEY`, `LLM_BASE_URL` (if non-default).
 Frontend (Vercel/workflow): `VITE_API_URL`.
 
 ## Risks
@@ -145,5 +145,5 @@ Frontend (Vercel/workflow): `VITE_API_URL`.
 | Public backend abuse of publish | publish requires a session; demo persona read-only |
 | Scope creep | P2 = rewards only; freeze D9 hard |
 | Plaintext secret lands in the public repo | sops-only rule under `infra/` + CI guard |
-| OTP email deliverability / spam folder | Resend + verified subdomain sender; seed-session fallback for the owner demo path |
+| OTP email deliverability / spam folder | Purelymail SMTP is domain-aligned (SPF/DKIM); seed-session fallback for the owner demo path; a few obscure receivers block Purelymail (their own FAQ) — acceptable for hackathon audience |
 | DB forgot to migrate on deploy | ExecStartPre migrate wrapper (beta-lyfe pattern) + health probe |

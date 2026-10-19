@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json.schemastore.org/package.json",
+  "name": "@crowdpilot/api-client-types",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./build/types.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc",
+    "lint": "biome lint",
+    "build": "tsx ./scripts/build.ts"
+  },
+  "dependencies": {
+    "@crowdpilot/api": "workspace:^",
+    "openapi-typescript": "^7.10.1"
+  }
+}

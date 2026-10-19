@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json.schemastore.org/package.json",
+  "name": "@crowdpilot/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./common": "./src/common/index.ts",
+    "./openapi.json": "./build/openapi.json",
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc",
+    "lint": "biome lint",
+    "build": "tsx ./scripts/build.ts"
+  },
+  "dependencies": {
+    "@effect/platform": "^0.82.8",
+    "effect": "^3.16.5"
+  }
+}

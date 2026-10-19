@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json.schemastore.org/package.json",
+  "name": "crowdpilot",
+  "private": true,
+  "packageManager": "pnpm@11.18.0",
+  "scripts": {
+    "build": "nx run-many -t build --nxBail",
+    "lint": "nx run-many -t lint --nxBail",
+    "typecheck": "nx run-many -t typecheck --nxBail"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.4",
+    "@types/node": "^22.10.2",
+    "nx": "22.7.7",
+    "tsx": "^4.21.0",
+    "typescript": "5.9.3"
+  }
+}

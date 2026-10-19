@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json.schemastore.org/package.json",
+  "name": "@crowdpilot/domain",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc",
+    "lint": "biome lint"
+  },
+  "dependencies": {
+    "effect": "^3.16.5"
+  }
+}
