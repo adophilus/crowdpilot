@@ -10,6 +10,7 @@
     "start": "tsx --env-file-if-exists=../../.env.development ./scripts/start.ts",
     "seed": "tsx --env-file-if-exists=../../.env.development ./scripts/seed.ts",
     "check:qloo-config": "tsx ./scripts/check-qloo-config.ts",
+    "spike:publish": "tsx --env-file-if-exists=../../.env.development ./scripts/spike-publish.ts",
     "typecheck": "tsc",
     "lint": "biome lint"
   },
