@@ -14,7 +14,7 @@
 | Typed APIs | `packages/api` (Effect HttpApi) → `openapi.json` → `api-client-types` → `api-client` (openapi-fetch + openapi-react-query) | — |
 | Lint/format | Biome (single root config) | — |
 | Runtime | Node 22 (`.nvmrc`), tsx for dev | — |
-| Persistence | **None.** In-memory + cookies. No DB, no migrations. | — |
+| Persistence | **None.** Profile JSON lives in browser localStorage, sent on session init; server session memory; scheduled posts persist in Onscript | — |
 
 Fresh code throughout, structured in Onscript's image. Onscript itself stays private and is only a *client dependency* (staging API) — never copied, never vendored.
 
@@ -37,9 +37,10 @@ crowdpilot/
 │  ├─ api-client-types/   # generated: openapi-typescript → build/types.ts
 │  ├─ api-client/         # createFetchClient + createTanstackQueryClient (+ makeApiClient for Effect consumers)
 │  └─ domain/             # shared effect-Schema types (stub, grow as needed)
+├─ infra/                 # home-manager (in-repo): services/crowdpilot unit, sops secrets, deploy timer
 ├─ nix/                   # backend bundle derivation (copied shape from beta-lyfe)
-├─ flake.nix              # packages backend, exports overlay for infra repo
-└─ .github/workflows/     # ci.yml, cd.yml (cachix + infra lock bump), production.yaml (Vercel)
+├─ flake.nix              # outputs: crowdpilot-backend package + homeConfigurations.crowdpilot (via self)
+└─ .github/workflows/     # ci.yml, cd.yml (build → cachix push), production.yaml (Vercel)
 ```
 
 Omitted from Onscript's skeleton: sql-kysely, observability/OTel, auth internals, payments, workers/crons, docs app, Docker/nginx.
@@ -99,17 +100,18 @@ Side-by-side panel: same prompt re-run with tools disabled; both transcripts cac
 
 ## Frontend
 
-TanStack Start (`apps/web`), `NITRO_PRESET=vercel`, typed via `api-client` + `openapi-react-query`. Public env `VITE_API_URL=https://<api-domain>` inlined at build. Screens: onboarding/picker → profile card → chat (streaming) → evidence panel (with/without toggle) → demo-persona button. Designed judge-flow-first (spec.md demo script).
+TanStack Start (`apps/web`), `NITRO_PRESET=vercel`, typed via `api-client` + `openapi-react-query`. Public env `VITE_API_URL=https://api.crowdpilot.hackathons.adophilus.com` inlined at build. Screens: onboarding/picker → profile card → chat (streaming) → evidence panel (with/without toggle) → demo-persona button. Designed judge-flow-first (spec.md demo script).
 
-## Deployment (beta-lyfe pattern, three repos)
+## Deployment (beta-lyfe pattern; infra lives in this repo)
 
-| Repo | Changes |
+| Repo/dir | Changes |
 |---|---|
-| `crowdpilot` (public, MIT) | flake.nix + `nix/packages/backend-bundle.nix` (esbuild, no pg-native) → `packages.x86_64-linux.crowdpilot-backend`; `cd.yml` (nix build → cachix push → bump infra flake.lock); `production.yaml` (Vercel prebuilt from temp dir) |
-| `crowdpilot-infra` (private) | home-manager flake: app repo as overlay input; `services/crowdpilot/default.nix` (systemd **user** unit, sops `EnvironmentFile`, ExecStart = server wrapper, Restart=on-failure); `services/crowdpilot/secrets.env` (sops: `PORT=1050`, `NODE_ENV=production`, `QLOO_API_KEY`, `ONSCRIPT_*`, `OWNER_TOKEN`, `LLM_API_KEY`); generic `deploy/` timer (5-min pull, switch on rev change) |
-| `vps/contabo` (personal) | users entry (system user, linger, deploy key, trusted-users) + one Caddy vhost `api.<domain>` → `127.0.0.1:1050` |
+| `crowdpilot` (public, MIT) | app code + flake outputs `packages.x86_64-linux.crowdpilot-backend` (nix/packages/backend-bundle.nix, esbuild, no pg-native) **and** `homeConfigurations.crowdpilot` (`infra/`: systemd **user** unit, sops `EnvironmentFile`, `deploy/` 5-min pull timer). Home config consumes the package via `self` — **no lockfile-bump step**. `cd.yml` = nix build → cachix push; `production.yaml` = Vercel prebuilt from temp dir |
+| `vps/contabo` (personal) | users entry (system user, linger, deploy key, trusted-users) + one Caddy vhost `api.crowdpilot.hackathons.adophilus.com` → `127.0.0.1:1050` (explicit vhost, normal auto-TLS; DNS: `*.hackathons` wildcard, grey-clouded → VPS) |
 
-Deploy flow: push main → CI builds via Cachix → bumps infra lock → VPS timer `home-manager switch` → Caddy TLS automatic. No SSH creds in CI (pull model).
+Deploy flow: push main → CI builds + pushes Cachix → VPS timer pulls this repo → `home-manager switch` (package substitutes from cache) → Caddy TLS automatic. No SSH creds in CI (pull model). Cachix: **shared existing cache** (default; no per-project setup) — split later only if isolation is wanted.
+
+**Secrets-in-public-repo rule:** `infra/services/crowdpilot/secrets.env` is sops-encrypted (age key only on the VPS). Only sops files may live under `infra/` — CI guard (few lines) fails on any non-sops file there. Plaintext secrets never touch this repo.
 
 **Gotchas (from beta-lyfe recon):** secrets-only change deploys but does NOT restart the unit — restart manually and verify; deploy timer must not be `WantedBy=default.target` (loop); linger=true mandatory; cachix required (else full pnpm rebuild per deploy); cachix substituters must also be in user's `~/.config/nix/nix.conf` (trusted-users); first activation needs `XDG_RUNTIME_DIR`/`DBUS_SESSION_BUS_ADDRESS` prefix under runuser.
 
@@ -131,3 +133,4 @@ Frontend (Vercel/workflow): `VITE_API_URL`.
 | Qloo place coverage thin (Lagos) | D2 check; NYC fallback persona is config-only |
 | Public backend abuse of publish | OWNER_TOKEN on mutating endpoints; demo persona read-only |
 | Scope creep | P2 = rewards only; freeze D9 hard |
+| Plaintext secret lands in the public repo | sops-only rule under `infra/` + CI guard |

@@ -24,7 +24,7 @@ Today = Sun Oct 19. Deadline **Thu Oct 30, 23:45 EDT** (submit Wed Oct 29 EOD �
 ## Parallel lanes (dispatch order)
 
 1. **Scaffold lane** (D1, worker): monorepo skeleton per architecture.md — workspace files, `packages/api` (+System group), `api-client-types`, `api-client`, `apps/backend` (config pattern, bootstrap, `/health`), `apps/web` (TanStack Start starter hitting `/health`).
-2. **Deploy lane** (D2, worker): flake + backend-bundle.nix, `cd.yml`/`production.yaml`, `crowdpilot-infra` (service unit + sops env), vps repo (user + Caddy vhost). Needs from owner: domain, cachix choice, infra repo name. Plan-B: plain systemd unit if Nix stalls.
+2. **Deploy lane** (D2, worker): flake (backend package + in-repo `homeConfigurations`), `infra/` (service unit + sops env + deploy timer), `cd.yml`/`production.yaml`, vps repo Caddy vhost. Domain confirmed: `api.crowdpilot.hackathons.adophilus.com`; cachix = shared. Plan-B: plain systemd unit if Nix stalls.
 3. **Qloo lane** (D2–4, worker): qloo feature (mock + live layers) + profile endpoints; blocked only by key for live calls, not for code.
 4. **Onscript lane** (D3, worker): onscript feature + publish spike against staging from the deployed backend.
 5. **Agent lane** (D4–6, main/worker): llm feature, tool loop, prompts, citation discipline, SSE endpoint.
