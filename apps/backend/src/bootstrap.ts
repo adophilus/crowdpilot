@@ -3,10 +3,30 @@ import { NodeHttpServer } from '@effect/platform-node'
 import { Effect, Layer, Logger, LogLevel } from 'effect'
 import { createServer } from 'node:http'
 import { Api } from '@crowdpilot/api'
+import { DatabaseUrl, SqlLive } from '@crowdpilot/sql'
 import { AppConfig } from './features/config'
+import { AuthApiLive, SessionMiddlewareLive } from './features/auth'
+import { AuthLive } from './features/auth'
 import { SystemApiLive } from './features/system/route'
 
-export const ApiLive = HttpApiBuilder.api(Api).pipe(Layer.provide(SystemApiLive))
+// Consumers merged before providers (Layer.provideMerge ordering rule).
+export const AuthDepLayer = Layer.empty.pipe(
+  Layer.provideMerge(AuthLive),
+  Layer.provideMerge(SqlLive),
+  Layer.provideMerge(
+    Layer.effect(DatabaseUrl, Effect.map(AppConfig, (c) => c.database.url))
+  )
+)
+
+export const ApiEndpointLayer = AuthApiLive.pipe(
+  Layer.provideMerge(SystemApiLive)
+)
+
+export const ApiLive = HttpApiBuilder.api(Api).pipe(
+  Layer.provide(ApiEndpointLayer),
+  Layer.provide(SessionMiddlewareLive),
+  Layer.provide(AuthDepLayer)
+)
 
 export const HttpLive = HttpApiBuilder.serve(HttpMiddleware.logger).pipe(
   Layer.provide(HttpApiBuilder.middlewareCors()),

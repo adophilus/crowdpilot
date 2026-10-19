@@ -10,13 +10,19 @@ export const EnvLive = Layer.effect(
         Config.withDefault('development')
       ),
       PORT: yield* Config.number('PORT').pipe(Config.withDefault(1050)),
+      DATABASE_URL: yield* Config.string('DATABASE_URL'),
+      SMTP_HOST: yield* Config.string('SMTP_HOST'),
+      SMTP_PORT: yield* Config.number('SMTP_PORT').pipe(
+        Config.withDefault(587)
+      ),
+      SMTP_USER: yield* Config.string('SMTP_USER'),
+      SMTP_PASS: yield* Config.string('SMTP_PASS'),
       QLOO_API_KEY: yield* Config.string('QLOO_API_KEY'),
       QLOO_BASE_URL: yield* Config.string('QLOO_BASE_URL').pipe(
         Config.withDefault('https://hackathon.api.qloo.com')
       ),
       ONSCRIPT_BASE_URL: yield* Config.string('ONSCRIPT_BASE_URL'),
       ONSCRIPT_SESSION_TOKEN: yield* Config.string('ONSCRIPT_SESSION_TOKEN'),
-      OWNER_TOKEN: yield* Config.string('OWNER_TOKEN'),
       LLM_API_KEY: yield* Config.string('LLM_API_KEY'),
       LLM_BASE_URL: yield* Config.option(Config.string('LLM_BASE_URL')).pipe(
         Config.map(Option.getOrUndefined)

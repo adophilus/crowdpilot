@@ -11,6 +11,17 @@ export const ServerConfigSchema = Schema.Struct({
   port: Schema.Number
 })
 
+export const DatabaseConfigSchema = Schema.Struct({
+  url: Schema.String
+})
+
+export const SmtpConfigSchema = Schema.Struct({
+  host: Schema.String,
+  port: Schema.Number,
+  user: Schema.String,
+  pass: Schema.String
+})
+
 export const QlooConfigSchema = Schema.Struct({
   apiKey: Schema.String,
   baseUrl: Schema.String
@@ -31,8 +42,9 @@ export class AppConfigSchema extends Schema.Class<AppConfigSchema>(
 )({
   environment: EnvironmentConfigSchema,
   server: ServerConfigSchema,
+  database: DatabaseConfigSchema,
+  smtp: SmtpConfigSchema,
   qloo: QlooConfigSchema,
   onscript: OnscriptConfigSchema,
-  ownerToken: Schema.String,
   llm: LlmConfigSchema
 }) {}

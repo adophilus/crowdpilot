@@ -1,0 +1,18 @@
+import { Context, type Effect } from 'effect'
+import type { SessionUser } from '@crowdpilot/api/common/CurrentUser'
+import type InvalidOrExpiredCodeError from '@crowdpilot/api/common/InvalidOrExpiredCodeError'
+import type { AuthEmailError } from './error'
+
+export interface AuthShape {
+  requestCode: (email: string) => Effect.Effect<void, AuthEmailError>
+  verify: (
+    email: string,
+    code: string
+  ) => Effect.Effect<
+    { token: string; user: SessionUser },
+    AuthEmailError | InvalidOrExpiredCodeError
+  >
+  logout: (rawToken: string) => Effect.Effect<void, AuthEmailError>
+}
+
+export class Auth extends Context.Tag('Auth')<Auth, AuthShape>() {}

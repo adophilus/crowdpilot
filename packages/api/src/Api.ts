@@ -1,4 +1,5 @@
 import { HttpApi, OpenApi } from '@effect/platform'
+import AuthApi from './Auth'
 import SystemApi from './System'
 
 const Api = HttpApi.make('CrowdPilot API')
@@ -16,5 +17,6 @@ const Api = HttpApi.make('CrowdPilot API')
     }
   ])
   .add(SystemApi)
+  .add(AuthApi)
 
 export default Api

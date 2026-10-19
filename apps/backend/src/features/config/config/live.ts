@@ -18,6 +18,15 @@ export const AppConfigLive = Layer.effect(
       server: {
         port: env.PORT
       },
+      database: {
+        url: env.DATABASE_URL
+      },
+      smtp: {
+        host: env.SMTP_HOST,
+        port: env.SMTP_PORT,
+        user: env.SMTP_USER,
+        pass: env.SMTP_PASS
+      },
       qloo: {
         apiKey: env.QLOO_API_KEY,
         baseUrl: env.QLOO_BASE_URL
@@ -26,7 +35,6 @@ export const AppConfigLive = Layer.effect(
         baseUrl: env.ONSCRIPT_BASE_URL,
         sessionToken: env.ONSCRIPT_SESSION_TOKEN
       },
-      ownerToken: env.OWNER_TOKEN,
       llm: {
         apiKey: env.LLM_API_KEY,
         baseUrl: env.LLM_BASE_URL
