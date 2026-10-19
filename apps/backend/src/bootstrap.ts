@@ -8,6 +8,9 @@ import { AppConfig } from './features/config'
 import { AuthApiLive, SessionMiddlewareLive } from './features/auth'
 import { AuthLive } from './features/auth'
 import { SystemApiLive } from './features/system/route'
+import { AgentApiLive, AgentServiceLive } from './features/agent'
+import { LlmServiceLive } from './features/llm'
+import { OnscriptServiceLive } from './features/onscript'
 import { QlooApiLive, QlooServiceAutoLive } from './features/qloo'
 import { EvidenceStoreLive } from './features/evidence'
 
@@ -25,16 +28,24 @@ export const QlooDepLayer = Layer.empty.pipe(
   Layer.provideMerge(EvidenceStoreLive)
 )
 
+export const AgentDepLayer = Layer.empty.pipe(
+  Layer.provideMerge(AgentServiceLive),
+  Layer.provideMerge(LlmServiceLive),
+  Layer.provideMerge(OnscriptServiceLive),
+  Layer.provideMerge(QlooDepLayer)
+)
+
 export const ApiEndpointLayer = AuthApiLive.pipe(
   Layer.provideMerge(SystemApiLive),
-  Layer.provideMerge(QlooApiLive)
+  Layer.provideMerge(QlooApiLive),
+  Layer.provideMerge(AgentApiLive)
 )
 
 export const ApiLive = HttpApiBuilder.api(Api).pipe(
   Layer.provide(ApiEndpointLayer),
   Layer.provide(SessionMiddlewareLive),
   Layer.provide(AuthDepLayer),
-  Layer.provide(QlooDepLayer)
+  Layer.provide(AgentDepLayer)
 )
 
 export const HttpLive = HttpApiBuilder.serve(HttpMiddleware.logger).pipe(

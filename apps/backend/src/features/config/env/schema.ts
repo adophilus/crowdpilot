@@ -14,5 +14,6 @@ export class EnvSchema extends Schema.Class<EnvSchema>('EnvSchema')({
   ONSCRIPT_BASE_URL: Schema.String,
   ONSCRIPT_SESSION_TOKEN: Schema.String,
   LLM_API_KEY: Schema.String,
-  LLM_BASE_URL: Schema.UndefinedOr(Schema.String)
+  LLM_BASE_URL: Schema.UndefinedOr(Schema.String),
+  LLM_MODEL: Schema.UndefinedOr(Schema.String)
 }) {}

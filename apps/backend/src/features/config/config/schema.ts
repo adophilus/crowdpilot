@@ -35,7 +35,8 @@ export const OnscriptConfigSchema = Schema.Struct({
 
 export const LlmConfigSchema = Schema.Struct({
   apiKey: Schema.String,
-  baseUrl: Schema.UndefinedOr(Schema.String)
+  baseUrl: Schema.UndefinedOr(Schema.String),
+  model: Schema.UndefinedOr(Schema.String)
 })
 
 export class AppConfigSchema extends Schema.Class<AppConfigSchema>(

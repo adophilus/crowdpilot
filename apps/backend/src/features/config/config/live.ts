@@ -38,7 +38,8 @@ export const AppConfigLive = Layer.effect(
       },
       llm: {
         apiKey: env.LLM_API_KEY,
-        baseUrl: env.LLM_BASE_URL
+        baseUrl: env.LLM_BASE_URL,
+        model: env.LLM_MODEL
       }
     })
   })

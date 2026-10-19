@@ -29,6 +29,9 @@ export const EnvLive = Layer.effect(
       LLM_API_KEY: yield* Config.string('LLM_API_KEY'),
       LLM_BASE_URL: yield* Config.option(Config.string('LLM_BASE_URL')).pipe(
         Config.map(Option.getOrUndefined)
+      ),
+      LLM_MODEL: yield* Config.option(Config.string('LLM_MODEL')).pipe(
+        Config.map(Option.getOrUndefined)
       )
     }
 
