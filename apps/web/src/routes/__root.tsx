@@ -7,7 +7,7 @@ import {
 import '@fontsource-variable/fraunces/opsz.css'
 import '@fontsource-variable/fraunces/opsz-italic.css'
 import '@fontsource-variable/instrument-sans/index.css'
-import './styles.css'
+import '../styles.css'
 
 const FAVICON =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23201812'/%3E%3Ctext x='16' y='23' font-size='19' text-anchor='middle' fill='%23d96b3f'%3E%E2%9C%B3%3C/text%3E%3C/svg%3E"

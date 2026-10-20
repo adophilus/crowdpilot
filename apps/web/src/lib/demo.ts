@@ -27,3 +27,9 @@ export const OWN_SUGGESTIONS = [
   'What should I play this weekend?',
   'Draft an IG post about our weekend opening hours'
 ]
+
+// The agent has no server-side profile store yet, so the first demo message
+// quietly carries the persona context — it reads the crowd entities from it,
+// calls the qloo tools and cites evidence. Display stays clean.
+export const DEMO_CONTEXT =
+  `Context (already on file): I run Kofi's café in Lagos. My crowd loves Burna Boy, Kabza De Small, Fela Kuti, Asake, Café Neo and Terra Kulture.`

@@ -16,6 +16,7 @@ export function SideBySide({
       role="dialog"
       aria-modal="true"
       aria-label="Grounded vs plain comparison"
+      onKeyDown={(e) => e.key === 'Escape' && onClose()}
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose()
       }}

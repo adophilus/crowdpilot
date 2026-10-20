@@ -25,7 +25,10 @@ const TOOL_ICONS: Record<string, string> = {
   publish_post: '➤'
 }
 
-const EV_RE = /\[ev_\d+\]/g
+// Capture group keeps the citation tokens in split parts — that's how inline
+// citations survive into badge elements. The model cites singly [ev_0009] or
+// in comma groups [ev_0009, ev_0011].
+const EV_RE = /(\[ev_[\d, ]+\])/g
 
 export function ChatMessage({
   msg,
@@ -49,7 +52,7 @@ export function ChatMessage({
   return (
     <div className="msg msg-assistant">
       {msg.toolCalls.length > 0 && (
-        <div className="chips" aria-label="Tool calls">
+        <div className="chips">
           {msg.toolCalls.map((call, i) => (
             <span className="chip" key={`${call.name}-${i}`}>
               <span className="chip-ico" aria-hidden>
@@ -60,7 +63,7 @@ export function ChatMessage({
           ))}
         </div>
       )}
-      <p className="assistant-text" style={{ margin: 0 }} aria-live={msg.streaming ? 'polite' : undefined}>
+      <p className="assistant-text" style={{ margin: 0 }}>
         <span className="assistant-mark" aria-hidden>
           ✳
         </span>
@@ -93,22 +96,51 @@ export function ChatMessage({
   )
 }
 
-// Split assistant text into prose + evidence badges for refs it actually holds.
+// Split assistant text into prose + inline evidence badges for the refs it
+// cites. Refs the model omitted from prose still get badges appended — every
+// answer must stay traceable to its Qloo calls. Prose gets a tiny markdown
+// pass (escape → bold → bullets); no dep, our own LLM output is the only source.
 function renderText(text: string, refs: readonly string[]): React.ReactNode[] {
   const parts = text.split(EV_RE)
-  const badges: React.ReactNode[] = []
-  parts.forEach((part, i) => {
-    badges.push(<span key={`t${i}`}>{part}</span>)
-    const match = part.match(/^\[ev_\d+\]$/)
-    if (match) {
-      const refId = match[0].slice(1, -1)
-      badges.push(
-        <EvidenceBadge key={`e${i}`} refId={refId} />
+  const cited = new Set<string>()
+  const nodes: React.ReactNode[] = parts.map((part, i) => {
+    const group = part.match(/^\[(ev_[\d, ]+)\]$/)
+    if (group) {
+      const ids = group[1].split(',').map((s) => s.trim()).filter(Boolean)
+      ids.forEach((id) => {
+        cited.add(id)
+      })
+      return (
+        <span key={`e${i}`}>
+          {ids.map((id) => (
+            <EvidenceBadge key={id} refId={id} />
+          ))}
+        </span>
       )
     }
+    return <span key={`t${i}`} dangerouslySetInnerHTML={{ __html: mdToHtml(part) }} />
   })
-  return badges
+  const uncited = refs.filter((r) => !cited.has(r))
+  if (uncited.length > 0) {
+    nodes.push(
+      <span key="ev-extra" style={{ marginLeft: 6 }}>
+        {uncited.map((r) => (
+          <EvidenceBadge key={r} refId={r} />
+        ))}
+      </span>
+    )
+  }
+  return nodes
 }
+
+const esc = (s: string) =>
+  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+
+const mdToHtml = (s: string) =>
+  esc(s)
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/^#{1,4} (.+)$/gm, '<strong>$1</strong>')
+    .replace(/^[*-] /gm, '• ')
 
 // Fold a stream event into the trailing assistant message.
 export function applyEvent(msg: Msg, event: AgentEvent): Msg {

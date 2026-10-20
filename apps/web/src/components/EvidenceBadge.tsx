@@ -1,13 +1,17 @@
 import { useState } from 'react'
-import { queryClient } from '../lib/api'
+import { bearer, queryClient } from '../lib/api'
 
 // Inline [ev_NNNN] citation badge → popover with the stored Qloo call.
+// GET /qloo/evidence is session-gated, so the fetch carries the bearer.
 export function EvidenceBadge({ refId }: { refId: string }) {
   const [open, setOpen] = useState(false)
+  const { headers } = bearer()
   const evidence = queryClient.useQuery(
     'get',
     '/qloo/evidence/{refId}',
-    { params: { path: { refId } } },
+    // openapi-typescript declares no header params for this route; openapi-fetch
+    // still merges params.header into the request at runtime.
+    { params: { path: { refId }, header: headers as never } },
     { enabled: open, staleTime: Number.POSITIVE_INFINITY, retry: 1 }
   )
 
@@ -26,7 +30,12 @@ export function EvidenceBadge({ refId }: { refId: string }) {
       </button>
       {open && (
         <>
-          <div className="pop-backdrop" onClick={() => setOpen(false)} />
+          <button
+            type="button"
+            className="pop-backdrop"
+            aria-label="Close evidence"
+            onClick={() => setOpen(false)}
+          />
           <div className="ev-pop" role="dialog" aria-label={`Evidence ${refId}`}>
             <div className="ev-pop-head">
               <span className="ev-pop-title">Qloo evidence · {refId}</span>

@@ -622,7 +622,16 @@ input, textarea {
   overflow-wrap: anywhere;
 }
 
-.pop-backdrop { position: fixed; inset: 0; z-index: 50; background: transparent; }
+/* Full-screen transparent close button behind the evidence popover */
+.pop-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: default;
+}
 
 /* suggestions */
 .suggest-row { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 0 12px; }

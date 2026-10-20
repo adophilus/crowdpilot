@@ -15,10 +15,12 @@ export function AuthPanel({
   const [code, setCode] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const emailRef = useRef<HTMLInputElement>(null)
   const codeRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (step === 'code') codeRef.current?.focus()
+    else emailRef.current?.focus()
   }, [step])
 
   const requestCode = async () => {
@@ -68,6 +70,7 @@ export function AuthPanel({
       role="dialog"
       aria-modal="true"
       aria-label="Sign in to CrowdPilot"
+      onKeyDown={(e) => e.key === 'Escape' && onClose()}
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose()
       }}
@@ -92,7 +95,7 @@ export function AuthPanel({
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && !busy && requestCode()}
-                  autoFocus
+                  ref={emailRef}
                 />
               </div>
               {error && <p className="form-error">{error}</p>}

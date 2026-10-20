@@ -20,11 +20,31 @@ export interface SessionUser {
 const TOKEN_KEY = 'crowdpilot_token'
 const USER_KEY = 'crowdpilot_user'
 
-// Signed-in token wins; VITE_DEMO_TOKEN (seeded demo session) is the fallback
-// that keeps the one-click demo persona free of signup friction.
-export const getToken = (): string | null =>
-  safeGet(TOKEN_KEY) ??
-  (import.meta.env.VITE_DEMO_TOKEN as string | undefined ?? null)
+// Signed-in token wins. The one-click demo persona mints its own session from
+// the public POST /demo/session (rate limited 10/IP/hour — cached for the
+// tab's lifetime after first mint).
+let cachedDemoToken: string | null = null
+
+export const ensureDemoSession = async (): Promise<string | null> => {
+  if (cachedDemoToken) return cachedDemoToken
+  try {
+    const res = await fetch(`${API_URL}/demo/session`, { method: 'POST' })
+    if (!res.ok) return null
+    const data = (await res.json()) as { token: string }
+    cachedDemoToken = data.token
+    return cachedDemoToken
+  } catch {
+    return null
+  }
+}
+
+// A 401 on a demo call means the minted session died — drop the cache so the
+// next demo click mints a fresh one.
+export const resetDemoSession = (): void => {
+  cachedDemoToken = null
+}
+
+export const getToken = (): string | null => safeGet(TOKEN_KEY) ?? cachedDemoToken
 
 export const getSignedInUser = (): SessionUser | null => {
   const raw = safeGet(USER_KEY)
