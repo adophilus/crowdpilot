@@ -7,6 +7,7 @@ import { DatabaseUrl, SqlLive } from '@crowdpilot/sql'
 import { AppConfig } from './features/config'
 import { AuthApiLive, SessionMiddlewareLive } from './features/auth'
 import { AuthLive } from './features/auth'
+import { DemoApiLive } from './features/demo'
 import { SystemApiLive } from './features/system/route'
 import { AgentApiLive, AgentServiceLive } from './features/agent'
 import { LlmServiceLive } from './features/llm'
@@ -38,7 +39,8 @@ export const AgentDepLayer = Layer.empty.pipe(
 export const ApiEndpointLayer = AuthApiLive.pipe(
   Layer.provideMerge(SystemApiLive),
   Layer.provideMerge(QlooApiLive),
-  Layer.provideMerge(AgentApiLive)
+  Layer.provideMerge(AgentApiLive),
+  Layer.provideMerge(DemoApiLive)
 )
 
 export const ApiLive = HttpApiBuilder.api(Api).pipe(

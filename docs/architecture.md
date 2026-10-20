@@ -68,7 +68,7 @@ Convention per route group: `src/<Group>/index.ts` (HttpApiGroup) + one `<Endpoi
     mock.ts        # fixture-backed layer (Qloo before key arrives; Onscript before spike)
   ```
 - **Auth**: email OTP sent from `hackathons@adophilus.com` via Purelymail SMTP (domain already fully on Purelymail — MX/SPF/DKIM/DMARC aligned, no DNS work; transactional mail is within their ToS) → `sessions` row → bearer token stored in **localStorage** (cross-origin Vercel→VPS makes cookies awkward; XSS accepted at hackathon scope). Publish + profile-write endpoints require a session; connecting accounts requires a session (OAuth happens through Onscript's flows; we store only the mapping user ↔ Onscript account id/platform). No orgs, no billing, no password resets.
-- **Auth middleware**: same `HttpApiMiddleware.Tag` shape as Onscript's, one Live impl (`SessionMiddleware`) reading the bearer token → `sessions` lookup → provides `CurrentUser`.
+- **Auth middleware**: same `HttpApiMiddleware.Tag` shape as Onscript's, one Live impl (`SessionMiddleware`) reading the bearer token → `sessions` lookup → provides `CurrentUser`. Public `POST /demo/session` mints a session for the seeded demo user (no auth, in-memory rate limit: 10 req/IP/hour → 429).
 - **Evidence rule**: every Qloo call appends `{request, response, spanId}` to the session's evidence log — feeds citations in chat and the with/without-Qloo panel.
 
 ## Agent layer

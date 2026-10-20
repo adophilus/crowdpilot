@@ -8,7 +8,8 @@ import { Auth } from './interface'
 import { AuthEmailError } from './error'
 
 const CODE_TTL_MS = 10 * 60 * 1000
-const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000
+export const SESSION_TTL_SECONDS = 30 * 24 * 60 * 60
+const SESSION_TTL_MS = SESSION_TTL_SECONDS * 1000
 
 const sha256 = (value: string) =>
   createHash('sha256').update(value).digest('hex')
@@ -29,6 +30,24 @@ export const AuthLive = Layer.effect(
     // Ephemeral OTP codes — 10-minute TTL, losing them on restart is fine
     // (users just request a new code). Sessions are durable in Postgres.
     const codes = new Map<string, { hash: string; expiresAt: number }>()
+
+    const createSessionForUser = (userId: string) =>
+      Effect.gen(function* () {
+        const token = randomBytes(32).toString('hex')
+        yield* Effect.tryPromise({
+          try: () =>
+            sql
+              .insertInto('sessions')
+              .values({
+                token_hash: sha256(token),
+                user_id: userId,
+                expires_at: new Date(Date.now() + SESSION_TTL_MS)
+              })
+              .execute(),
+          catch: (cause) => new AuthEmailError({ cause })
+        })
+        return { token, expiresIn: SESSION_TTL_SECONDS }
+      })
 
     return Auth.of({
       requestCode: (email) =>
@@ -80,22 +99,12 @@ export const AuthLive = Layer.effect(
             catch: (cause) => new AuthEmailError({ cause })
           })
 
-          const token = randomBytes(32).toString('hex')
-          yield* Effect.tryPromise({
-            try: () =>
-              sql
-                .insertInto('sessions')
-                .values({
-                  token_hash: sha256(token),
-                  user_id: user.id,
-                  expires_at: new Date(Date.now() + SESSION_TTL_MS)
-                })
-                .execute(),
-            catch: (cause) => new AuthEmailError({ cause })
-          })
+          const { token } = yield* createSessionForUser(user.id)
 
           return { token, user: { id: user.id, email: user.email } }
         }),
+
+      createSessionForUser,
 
       logout: (rawToken) =>
         Effect.gen(function* () {

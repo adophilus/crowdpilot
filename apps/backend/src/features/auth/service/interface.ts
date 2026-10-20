@@ -13,6 +13,9 @@ export interface AuthShape {
     AuthEmailError | InvalidOrExpiredCodeError
   >
   logout: (rawToken: string) => Effect.Effect<void, AuthEmailError>
+  createSessionForUser: (
+    userId: string
+  ) => Effect.Effect<{ token: string; expiresIn: number }, AuthEmailError>
 }
 
 export class Auth extends Context.Tag('Auth')<Auth, AuthShape>() {}
