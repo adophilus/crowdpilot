@@ -1,0 +1,36 @@
+version: 0.5
+
+# CrowdPilot dev stack — run inside tmux:
+#   process-compose up --config process-compose.dev.yaml --port 4234
+# CLI against the running instance:
+#   process-compose -p 4234 process list -o json | process logs | is-ready
+
+processes:
+  backend:
+    command: bash -c 'docker start crowdpilot-dev-pg >/dev/null 2>&1; exec pnpm --filter backend dev'
+    availability:
+      restart: on_failure
+    readiness_probe:
+      exec:
+        command: curl --fail http://localhost:1050/health
+      initial_delay_seconds: 5
+      period_seconds: 5
+      timeout_seconds: 5
+      success_threshold: 1
+      failure_threshold: 15
+
+  web:
+    command: pnpm --filter web dev
+    availability:
+      restart: on_failure
+    depends_on:
+      backend:
+        condition: process_healthy
+    readiness_probe:
+      exec:
+        command: curl --fail http://localhost:3000/
+      initial_delay_seconds: 10
+      period_seconds: 5
+      timeout_seconds: 30
+      success_threshold: 1
+      failure_threshold: 20
