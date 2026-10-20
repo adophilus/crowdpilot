@@ -36,10 +36,16 @@
       crowdpilot-backend = pkgs.callPackage ./nix/packages/crowdpilot-backend.nix {
         inherit nodejs backend-bundle;
       };
+      web-bundle = pkgs.callPackage ./nix/packages/crowdpilot-web-bundle.nix {
+        inherit nodejs pnpm;
+      };
+      crowdpilot-web = pkgs.callPackage ./nix/packages/crowdpilot-web.nix {
+        inherit nodejs web-bundle;
+      };
     in
     {
       packages.${system} = {
-        inherit crowdpilot-backend;
+        inherit crowdpilot-backend crowdpilot-web;
         default = crowdpilot-backend;
       };
 
@@ -50,7 +56,7 @@
         pkgs = import inputs.nixpkgs {
           inherit system;
           overlays = [
-            (_final: _prev: { inherit crowdpilot-backend; })
+            (_final: _prev: { inherit crowdpilot-backend crowdpilot-web; })
           ];
         };
         extraSpecialArgs = { inherit inputs; };
@@ -58,6 +64,7 @@
           inputs.sops-nix.homeManagerModules.sops
           ./infra/home.nix
           ./infra/services/crowdpilot
+          ./infra/services/crowdpilot-web
           ./infra/deploy
         ];
       };
