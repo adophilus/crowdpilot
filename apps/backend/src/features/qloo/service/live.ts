@@ -81,39 +81,50 @@ export const QlooServiceLive = Layer.effect(
       (json as { results?: Array<Record<string, unknown>> } | undefined)
         ?.results ?? []
 
-    // Internal variant: Qloo's filter.type=tag returns audience tags.
+    // Internal variant: Qloo's filter.type=urn:tag returns audience tags.
     type InsightsArgs = Omit<QlooInsightsArgs, 'filterType'> & {
-      filterType: QlooEntityType | 'tag'
+      filterType: QlooEntityType | 'tag' | 'urn:tag'
     }
 
     const insightsCall = (args: InsightsArgs) =>
       call('/v2/insights', {
-        'filter.type': args.filterType,
+        // short domain names normalize to urn here; urn:tag passes through
+        'filter.type':
+          args.filterType === 'urn:tag'
+            ? 'urn:tag'
+            : `urn:entity:${args.filterType}`,
         'signal.interests.entities': args.signalEntityIds?.join(','),
         'signal.interests.tags': args.signalTagIds?.join(','),
         'location.query': args.locationNear,
         tags: args.tags?.join(',')
       }).pipe(
         Effect.map((jsonAndRef): QlooInsightsResult => {
-          // Empty entities is a normal result, not an error.
+          // Empty results are normal, not an error. urn:tag calls return
+          // results.tags[] (taste analysis); entity calls return
+          // results.entities[].
           const json = jsonAndRef.json
-          const wireEntities =
-            (json as { results?: { entities?: Array<Record<string, unknown>> } })
-              ?.results?.entities ?? []
-          const entities = wireEntities.map((entity, index) => ({
-            id: String(entity.id ?? entity.entity_id ?? ''),
+          const wireRecords: Array<Record<string, unknown>> =
+            args.filterType === 'urn:tag'
+              ? ((json as { results?: { tags?: Array<Record<string, unknown>> } })
+                  ?.results?.tags ?? [])
+              : ((json as { results?: { entities?: Array<Record<string, unknown>> } })
+                  ?.results?.entities ?? [])
+          const entities = wireRecords.map((entity, index) => ({
+            id: String(entity.id ?? entity.entity_id ?? entity.tag_id ?? ''),
             name: String(entity.name ?? ''),
             type: shortType(
               entity.type,
-              args.filterType === 'tag' ? 'place' : args.filterType
+              args.filterType === 'urn:tag' ? 'tag' : args.filterType
             ),
             score:
               typeof entity.score === 'number'
                 ? entity.score
-                : typeof (entity.properties as { affinity?: unknown } | undefined)
-                      ?.affinity === 'number'
-                  ? (entity.properties as { affinity: number }).affinity
-                  : Math.round((1 - index * 0.05) * 100) / 100,
+                : typeof entity.popularity === 'number'
+                  ? entity.popularity
+                  : typeof (entity.properties as { affinity?: unknown } | undefined)
+                        ?.affinity === 'number'
+                    ? (entity.properties as { affinity: number }).affinity
+                    : Math.round((1 - index * 0.05) * 100) / 100,
             tags: Array.isArray(entity.tags)
               ? (entity.tags as unknown[]).map(String)
               : undefined
@@ -125,7 +136,7 @@ export const QlooServiceLive = Layer.effect(
 
     return QlooService.of({
       search: (query, type) =>
-        call('/search', { query, types: type }).pipe(
+        call('/search', { query, types: type ? `urn:entity:${type}` : undefined }).pipe(
           Effect.map(
             (callResult) =>
               resultsOf(callResult.json).map((entity) => ({
@@ -159,9 +170,9 @@ export const QlooServiceLive = Layer.effect(
 
       buildProfile: (entityIds, tagIds) =>
         Effect.gen(function* () {
-          // filter.type=tag returns audience tags for the signal entities.
+          // filter.type=urn:tag returns audience tags for the signal entities.
           const tagResult = yield* insightsCall({
-            filterType: 'tag',
+            filterType: 'urn:tag',
             signalEntityIds: entityIds,
             signalTagIds: tagIds
           })
