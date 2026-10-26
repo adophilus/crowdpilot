@@ -13,11 +13,19 @@ is the operational always-loaded layer.
 ## 1. Essential Commands
 
 ```bash
-# Dev stack (tmux window `stack` in the qloo-agentic-hackathon session)
-process-compose up --config process-compose.dev.yaml --port 4234
-# CLI against the running stack (logs/status/restart — never parse the TUI):
-process-compose -p $PC_PORT process list -o json
-process-compose -p $PC_PORT project is-ready
+# Dev stack — HEADLESS daemon, never TUI mode (tmux session `qah`):
+tmux new-window -d -t qah: -n stack \
+  'direnv exec . process-compose up -t=false --config process-compose.dev.yaml --port 4234'
+# optional live view for humans — attach is only a client, F10 there is safe
+tmux new-window -d -t qah: -n stack-status 'process-compose attach -p 4234'
+
+# Drive it through the REST client (never parse or key into the TUI):
+pc() { process-compose -p 4234 "$@"; }
+pc project is-ready            # health gate before browser testing
+pc process list -o json        # parse-safe status
+pc process logs -n 50 backend  # last N lines; NEVER `logs -f` in an agent shell
+pc process restart backend     # returns before readiness — poll is-ready after
+pc down                        # the only real stop
 
 # Quality gates (all must pass before any commit)
 pnpm build && pnpm lint && pnpm typecheck
@@ -38,7 +46,7 @@ pnpm --filter backend spike:publish -- --yes     # add --mock for fixtures
 | Web (TanStack Start dev) | `:3000` |
 | Website (TanStack Start dev) | `:3001` |
 | process-compose CLI | `:4234` (`PC_PORT` in env files) |
-| Postgres (dev) | docker container `crowdpilot-dev-pg`, `127.0.0.1:5432` |
+| Postgres (dev) | docker or podman container `crowdpilot-dev-pg`, `127.0.0.1:5432` |
 | Qloo base URL | `https://hackathon.api.qloo.com` (hackathon keys ONLY work here) |
 | Onscript | `https://api.onscript.xyz` |
 
@@ -88,11 +96,15 @@ api-client.
    `packages/*` requires a backend restart to take effect.
 5. **NEVER run bare `pkill -f tsx`** — it matches your own shell and kills it.
    Use `pkill -f 'start\.ts'` (backend) or `pkill -f 'start\.mjs'` (bundle).
-6. **process-compose**: config is read at startup — `process restart` re-runs
-   the command but NOT probe/config changes; restart the whole window after
-   editing the yaml. Use `exec` probes (`curl --fail URL`); `http_get` probes
-   drop the port and hit port 80. After env-file changes, a restart does not
-   reload them either.
+6. **process-compose**: run headless (`-t=false`) on purpose — F10 on the
+   *owning* TUI kills the daemon; an attached TUI is only a client. Always pass
+   `--port` explicitly: PC does not read `PC_PORT` from env and silently
+   attaches to whatever owns the default port. PC does not read `.env` either
+   and agent shells have no direnv hook — launch via `direnv exec .`. Config
+   and env are read at startup — `process restart` re-runs the command but NOT
+   probe/config/env changes; `pc down` and relaunch after editing the yaml or
+   env files. Use `exec` probes (`curl --fail URL`); `http_get` probes drop
+   the port and hit port 80.
 7. **Vite first compile exceeds short timeouts** — allow 30-60s warmup before
    probing :3000.
 8. **Onscript API quirks**: publish (`POST /posts/:id/publish`) requires a

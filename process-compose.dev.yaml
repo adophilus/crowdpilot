@@ -7,7 +7,7 @@ version: 0.5
 
 processes:
   backend:
-    command: bash -c 'docker start crowdpilot-dev-pg >/dev/null 2>&1; exec pnpm --filter backend dev'
+    command: bash -c '{ docker start crowdpilot-dev-pg || podman start crowdpilot-dev-pg; } >/dev/null 2>&1; exec pnpm --filter backend dev'
     availability:
       restart: on_failure
     readiness_probe:

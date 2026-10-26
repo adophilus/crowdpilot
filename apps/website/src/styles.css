@@ -1317,18 +1317,56 @@ button {
 }
 
 .marquee {
-  overflow-x: auto;
-  scrollbar-width: thin;
+  overflow: hidden;
   padding: 18px 0 40px;
   text-align: left;
-  overscroll-behavior-x: contain;
 }
 
+/* Two identical sets; -50% lands the copy exactly where the original began.
+   Cards space with margin-right (not gap) so both halves are equal width. */
 .track {
   display: flex;
   width: max-content;
-  padding-left: max(24px, calc(50vw - 576px));
-  padding-right: 24px;
+  animation: cp-scroll 55s linear infinite;
+}
+
+.marquee:hover .track,
+.marquee:focus-within .track {
+  animation-play-state: paused;
+}
+
+.track__set {
+  display: flex;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+@keyframes cp-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marquee {
+    overflow-x: auto;
+    scrollbar-width: thin;
+    overscroll-behavior-x: contain;
+  }
+
+  .track {
+    animation: none;
+    padding-left: max(24px, calc(50vw - 576px));
+    padding-right: 24px;
+  }
+
+  .track__set--copy {
+    display: none;
+  }
 }
 
 .dcard {
@@ -1617,14 +1655,19 @@ button {
 
 /* ---------- roadmap ---------- */
 
+/* Pinned scroll: the section is the card plus 60vh of scroll per milestone;
+   the sticky card holds mid-viewport while that extra height scrolls by. */
 .roadmap {
+  --rm-card: min(720px, calc(100vh - 32px));
   position: relative;
   margin: 100px 16px 0;
+  height: calc(var(--rm-card) + var(--rm-steps, 2) * 60vh);
 }
 
 .roadmap__card {
-  height: 720px;
-  position: relative;
+  height: var(--rm-card);
+  position: sticky;
+  top: max(16px, calc((100vh - var(--rm-card)) / 2));
   border-radius: 26px;
   background: var(--ink);
   color: var(--white);
@@ -2176,8 +2219,8 @@ button {
     margin: 72px 8px 0;
   }
 
-  .roadmap__card {
-    height: 640px;
+  .roadmap {
+    --rm-card: min(640px, calc(100vh - 32px));
   }
 
   .help {

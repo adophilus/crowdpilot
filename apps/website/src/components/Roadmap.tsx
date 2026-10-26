@@ -1,4 +1,10 @@
-import { type RefObject, useEffect, useRef, useState } from 'react'
+import {
+  type CSSProperties,
+  type RefObject,
+  useEffect,
+  useRef,
+  useState
+} from 'react'
 
 const MILESTONES = [
   {
@@ -15,20 +21,29 @@ const MILESTONES = [
   }
 ]
 
-// Scroll-linked: progress runs 0 → 1 while the section's top travels from
-// 80% to 20% of the viewport; slides swap and the bars fill along with it.
-function useScrollProgress(ref: RefObject<HTMLElement | null>) {
+// Scroll-linked: the section is taller than its card and the card is
+// sticky, so it pins mid-viewport while the page scrolls through the extra
+// height. Progress is how far the pinned card has travelled inside the
+// section: 0 when it pins, 1 when it releases. Slides swap and bars fill
+// along with it.
+function useScrollProgress(
+  sectionRef: RefObject<HTMLElement | null>,
+  cardRef: RefObject<HTMLElement | null>
+) {
   const [prog, setProg] = useState(0)
   useEffect(() => {
     let raf = 0
     let last = -1
     const measure = () => {
       raf = 0
-      const el = ref.current
-      if (!el) return
-      const top = el.getBoundingClientRect().top
-      const vh = Math.min(window.innerHeight || 800, 900)
-      const p = Math.max(0, Math.min(1, (vh * 0.8 - top) / (vh * 0.6)))
+      const section = sectionRef.current
+      const card = cardRef.current
+      if (!section || !card) return
+      const s = section.getBoundingClientRect()
+      const c = card.getBoundingClientRect()
+      const travel = s.height - c.height
+      const p =
+        travel > 0 ? Math.max(0, Math.min(1, (c.top - s.top) / travel)) : 0
       if (Math.abs(p - last) > 0.004) {
         last = p
         setProg(p)
@@ -48,13 +63,14 @@ function useScrollProgress(ref: RefObject<HTMLElement | null>) {
       window.removeEventListener('resize', onScroll)
       if (raf) cancelAnimationFrame(raf)
     }
-  }, [ref])
+  }, [sectionRef, cardRef])
   return prog
 }
 
 export function Roadmap() {
   const ref = useRef<HTMLElement>(null)
-  const prog = useScrollProgress(ref)
+  const cardRef = useRef<HTMLDivElement>(null)
+  const prog = useScrollProgress(ref, cardRef)
   const n = MILESTONES.length
   const idx = Math.min(n - 1, Math.floor(prog * n))
 
@@ -63,9 +79,10 @@ export function Roadmap() {
       id="roadmap"
       ref={ref}
       className="roadmap"
+      style={{ '--rm-steps': n } as CSSProperties}
       aria-labelledby="roadmap-h"
     >
-      <div className="roadmap__card">
+      <div ref={cardRef} className="roadmap__card">
         <div className="roadmap__head">
           <span className="roadmap__pill">Roadmap</span>
           <h2 id="roadmap-h" className="roadmap__h">

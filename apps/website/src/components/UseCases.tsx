@@ -75,13 +75,11 @@ export function UseCases() {
   // one fully visible.
   const select = (id: string) => {
     setSel(id)
-    document
-      .getElementById(`uc-tab-${id}`)
-      ?.scrollIntoView({
-        block: 'nearest',
-        inline: 'nearest',
-        behavior: 'smooth'
-      })
+    document.getElementById(`uc-tab-${id}`)?.scrollIntoView({
+      block: 'nearest',
+      inline: 'nearest',
+      behavior: 'smooth'
+    })
   }
 
   const onKey = (e: KeyboardEvent, i: number) => {

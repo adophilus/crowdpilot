@@ -64,6 +64,41 @@ const DOMAINS = [
   }
 ]
 
+function DomainList({
+  label,
+  copy = false
+}: {
+  label?: string
+  copy?: boolean
+}) {
+  return (
+    <ul
+      className={`track__set${copy ? ' track__set--copy' : ''}`}
+      aria-label={label}
+      aria-hidden={copy || undefined}
+    >
+      {DOMAINS.map((d) => (
+        <li key={d.label} className="dcard">
+          <div className="dcard__ph" aria-hidden="true">
+            <Icon d={d.icon} size={120} strokeWidth={1} />
+          </div>
+          <div className="dcard__ov" />
+          <div className="dcard__body">
+            <div className="dcard__label">
+              <span className="dcard__icon">
+                <Icon d={d.icon} size={18} />
+              </span>
+              {d.label}
+            </div>
+            <div className="dcard__blurb">{d.blurb}</div>
+            <p className="dcard__more">{d.more}</p>
+          </div>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 export function Domains() {
   return (
     <section className="section domains" aria-labelledby="domains-h">
@@ -76,31 +111,14 @@ export function Domains() {
         it trusts. CrowdPilot reads across ten domains to find those crossovers.
       </p>
       <div className="bleed" style={{ marginTop: 56 }}>
+        {/* Endless marquee: the list renders twice and the track slides by
+            exactly -50%, so the loop seam is invisible. The copy is hidden
+            from assistive tech; reduced motion falls back to a scroll row. */}
         <div className="marquee">
-          <ul
-            className="track"
-            aria-label="Cultural domains"
-            style={{ listStyle: 'none', margin: 0 }}
-          >
-            {DOMAINS.map((d) => (
-              <li key={d.label} className="dcard">
-                <div className="dcard__ph" aria-hidden="true">
-                  <Icon d={d.icon} size={120} strokeWidth={1} />
-                </div>
-                <div className="dcard__ov" />
-                <div className="dcard__body">
-                  <div className="dcard__label">
-                    <span className="dcard__icon">
-                      <Icon d={d.icon} size={18} />
-                    </span>
-                    {d.label}
-                  </div>
-                  <div className="dcard__blurb">{d.blurb}</div>
-                  <p className="dcard__more">{d.more}</p>
-                </div>
-              </li>
-            ))}
-          </ul>
+          <div className="track">
+            <DomainList label="Cultural domains" />
+            <DomainList copy />
+          </div>
         </div>
       </div>
     </section>
