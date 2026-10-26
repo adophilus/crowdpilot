@@ -2,8 +2,11 @@ import { HttpApi, OpenApi } from '@effect/platform'
 import AuthApi from './Auth'
 import ChatApi from './Chat'
 import DemoApi from './Demo'
+import OnscriptApi from './Onscript'
+import PostsApi from './Posts'
 import QlooApi from './Qloo'
 import SystemApi from './System'
+import WorkspaceApi from './Workspace'
 
 const Api = HttpApi.make('CrowdPilot API')
   .annotate(OpenApi.Title, 'CrowdPilot API')
@@ -24,5 +27,8 @@ const Api = HttpApi.make('CrowdPilot API')
   .add(DemoApi)
   .add(QlooApi)
   .add(ChatApi)
+  .add(OnscriptApi)
+  .add(PostsApi)
+  .add(WorkspaceApi)
 
 export default Api
