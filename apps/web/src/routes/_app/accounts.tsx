@@ -1,34 +1,218 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { useEffect, useRef, useState } from 'react'
-import { Icon } from '../../components/ui'
-import { PLATFORMS, type PlatformId } from '../../lib/fixtures'
+import { useEffect, useState } from 'react'
+import { api, bearer } from '../../lib/api'
+import {
+  API_PLATFORM,
+  PLATFORMS,
+  type PlatformId
+} from '../../lib/fixtures'
 import { updateWorkspace, useWorkspace } from '../../lib/workspace'
+import { Icon } from '../../components/ui'
 
 export const Route = createFileRoute('/_app/accounts')({
   component: Accounts
 })
 
-// Connect / sync are simulated until Onscript account linking is exposed to
-// the web app; the state persists in the local workspace.
+type OnscriptAccount = {
+  id: string
+  platform: 'TWITTER' | 'FACEBOOK' | 'INSTAGRAM'
+  username?: string
+  displayName?: string
+  isActive: boolean
+}
+
+type OnscriptSession = {
+  linked: boolean
+  email?: string
+  usingServiceAccount: boolean
+}
+
+const errText = (e: unknown): string =>
+  e && typeof e === 'object' && 'message' in e
+    ? String((e as { message?: string }).message)
+    : 'Something went wrong. Try again.'
+
 function Accounts() {
   const ws = useWorkspace()
-  const [syncing, setSyncing] = useState<PlatformId | null>(null)
-  const [connecting, setConnecting] = useState<PlatformId | null>(null)
-  const [draft, setDraft] = useState('')
-  const timers = useRef<number[]>([])
-  useEffect(() => {
-    const list = timers.current
-    return () => {
-      for (const t of list) clearTimeout(t)
-    }
-  }, [])
-  const later = (fn: () => void, ms: number) =>
-    timers.current.push(window.setTimeout(fn, ms))
 
-  const handle = `@${ws.business.name
-    .normalize('NFD')
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, '') || 'yourbusiness'}`
+  const [accounts, setAccounts] = useState<OnscriptAccount[] | null>(null)
+  const [loadError, setLoadError] = useState(false)
+  const [connecting, setConnecting] = useState<PlatformId | null>(null)
+  const [disconnecting, setDisconnecting] = useState<string | null>(null)
+  const [syncing, setSyncing] = useState(false)
+
+  // Onscript link state
+  const [session, setSession] = useState<OnscriptSession | null>(null)
+  const [email, setEmail] = useState('')
+  const [otp, setOtp] = useState('')
+  const [otpSent, setOtpSent] = useState(false)
+  const [linkBusy, setLinkBusy] = useState(false)
+  const [linkError, setLinkError] = useState('')
+
+  const connectedFor = (id: PlatformId): OnscriptAccount | undefined =>
+    accounts?.find((a) => a.platform === API_PLATFORM[id] && a.isActive)
+
+  // Real account state → mirrors into the workspace so the dashboard
+  // (home glyphs, plan guards) shows the truth without its own fetch.
+  const mirror = (list: OnscriptAccount[]) =>
+    updateWorkspace(() => ({
+      connected: {
+        x: list.some((a) => a.platform === 'TWITTER' && a.isActive),
+        fb: list.some((a) => a.platform === 'FACEBOOK' && a.isActive),
+        ig: list.some((a) => a.platform === 'INSTAGRAM' && a.isActive)
+      }
+    }))
+
+  const loadAccounts = async (): Promise<OnscriptAccount[] | null> => {
+    try {
+      const { data, error } = await api.GET('/onscript/accounts', bearer())
+      if (error || !data) {
+        setLoadError(true)
+        return null
+      }
+      setAccounts(data.accounts)
+      setLoadError(false)
+      mirror(data.accounts)
+      return data.accounts
+    } catch {
+      setLoadError(true)
+      return null
+    }
+  }
+
+  const loadSession = async (): Promise<void> => {
+    try {
+      const { data } = await api.GET('/onscript/session', bearer())
+      if (data) setSession(data)
+    } catch {
+      /* link state stays unknown; section keeps the explainer */
+    }
+  }
+
+  useEffect(() => {
+    void loadAccounts()
+    void loadSession()
+  }, [])
+
+  // Connect: Onscript-hosted OAuth in a popup, then poll until the account
+  // shows up (or 90s pass and we give up honestly).
+  const connect = async (p: (typeof PLATFORMS)[number]) => {
+    setConnecting(p.id)
+    setLinkError('')
+    try {
+      const { data, error } = await api.POST('/onscript/connect/url', {
+        ...bearer(),
+        body: { platform: API_PLATFORM[p.id] }
+      })
+      if (error || !data) {
+        setLinkError(
+          error && 'message' in error && error.message
+            ? error.message
+            : `Couldn't start connecting ${p.short}. Try again.`
+        )
+        return
+      }
+      window.open(data.authUrl, 'crowdpilot-connect', 'width=520,height=720')
+      const deadline = Date.now() + 90_000
+      while (Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, 2000))
+        const list = await loadAccounts()
+        if (list?.some((a) => a.platform === API_PLATFORM[p.id] && a.isActive))
+          return
+      }
+      setLinkError(
+        `Still waiting on ${p.short} — finish the popup, then hit Sync.`
+      )
+    } catch {
+      setLinkError(`Couldn't start connecting ${p.short}. Try again.`)
+    } finally {
+      setConnecting(null)
+    }
+  }
+
+  const disconnect = async (acct: OnscriptAccount) => {
+    setDisconnecting(acct.id)
+    try {
+      await api.POST('/onscript/disconnect', {
+        ...bearer(),
+        body: { accountId: acct.id }
+      })
+    } catch {
+      /* refresh below shows the real state either way */
+    }
+    await loadAccounts()
+    setDisconnecting(null)
+  }
+
+  // One real sync: re-read accounts, stamp the rows we refreshed.
+  const syncAll = async () => {
+    setSyncing(true)
+    const list = await loadAccounts()
+    if (list) {
+      const now = 'just now'
+      updateWorkspace(() => ({ synced: { x: now, fb: now, ig: now } }))
+    }
+    setSyncing(false)
+  }
+
+  const startLink = async () => {
+    setLinkBusy(true)
+    setLinkError('')
+    try {
+      const { error } = await api.POST('/onscript/link/start', {
+        ...bearer(),
+        body: { email: email.trim() }
+      })
+      if (error) {
+        setLinkError(errText(error))
+        return
+      }
+      setOtpSent(true)
+    } catch (e) {
+      setLinkError(errText(e))
+    } finally {
+      setLinkBusy(false)
+    }
+  }
+
+  const verifyLink = async () => {
+    setLinkBusy(true)
+    setLinkError('')
+    try {
+      const { error } = await api.POST('/onscript/link/verify', {
+        ...bearer(),
+        body: { email: email.trim(), otp: otp.trim() }
+      })
+      if (error) {
+        setLinkError(errText(error))
+        return
+      }
+      setOtpSent(false)
+      setOtp('')
+      await loadSession()
+      await loadAccounts()
+    } catch (e) {
+      setLinkError(errText(e))
+    } finally {
+      setLinkBusy(false)
+    }
+  }
+
+  const unlink = async () => {
+    setLinkBusy(true)
+    setLinkError('')
+    try {
+      await api.POST('/onscript/link/disconnect', bearer())
+      await loadSession()
+      await loadAccounts()
+    } catch (e) {
+      setLinkError(errText(e))
+    } finally {
+      setLinkBusy(false)
+    }
+  }
+
+  const [draft, setDraft] = useState('')
 
   const add = () => {
     const v = draft.trim()
@@ -48,12 +232,29 @@ function Accounts() {
       </header>
 
       <section className="card card-stack card-gap-12" aria-labelledby="con-h">
-        <h2 id="con-h" className="card-title card-title-gap">
-          Social accounts
-        </h2>
+        <div className="row-between row-wrap">
+          <h2 id="con-h" className="card-title card-title-gap">
+            Social accounts
+          </h2>
+          <button
+            type="button"
+            className="btn btn-outline btn-row"
+            disabled={syncing || accounts === null}
+            onClick={() => void syncAll()}
+          >
+            {syncing ? 'Syncing…' : 'Sync now'}
+          </button>
+        </div>
+        {loadError && accounts === null && (
+          <div role="status" className="note-row">
+            <span className="accent-dot accent-dot-lg" />
+            Couldn't reach the posting service. Your accounts here are shown
+            from the last known state.
+          </div>
+        )}
         {PLATFORMS.map((p) => {
-          const on = Boolean(ws.connected[p.id])
-          const isSync = syncing === p.id
+          const acct = connectedFor(p.id)
+          const on = Boolean(acct)
           const isConn = connecting === p.id
           return (
             <div key={p.id} className="acct-row" data-on={on || undefined}>
@@ -63,66 +264,40 @@ function Accounts() {
               <span className="acct-row-text">
                 <span className="acct-row-name">
                   <span>{p.name}</span>
-                  {on && <span className="acct-row-handle">{handle}</span>}
+                  {on && acct?.username && (
+                    <span className="acct-row-handle">@{acct.username}</span>
+                  )}
                 </span>
                 <span className="acct-row-sub">
-                  {on
-                    ? isSync
-                      ? 'Syncing followers and engagement…'
-                      : `Reads followers & engagement · Posts with your approval · Synced ${ws.synced[p.id]}`
-                    : 'Not connected'}
+                  {p.mediaOnly
+                    ? 'Needs media uploads — soon'
+                    : on
+                      ? `Reads followers & engagement · Posts with your approval${
+                          ws.synced[p.id] ? ` · Synced ${ws.synced[p.id]}` : ''
+                        }`
+                      : 'Not connected'}
                 </span>
               </span>
               <span className="conn-chip" data-on={on || undefined}>
-                {on ? 'Connected' : 'Off'}
+                {on ? 'Connected' : p.mediaOnly ? 'Soon' : 'Off'}
               </span>
               <span className="acct-row-actions">
-                {on ? (
-                  <>
-                    <button
-                      className="btn btn-outline btn-row"
-                      type="button"
-                      disabled={isSync}
-                      onClick={() => {
-                        setSyncing(p.id)
-                        later(() => {
-                          setSyncing(null)
-                          updateWorkspace((w) => ({
-                            synced: { ...w.synced, [p.id]: 'just now' }
-                          }))
-                        }, 1300)
-                      }}
-                    >
-                      {isSync ? 'Syncing…' : 'Sync now'}
-                    </button>
-                    <button
-                      className="btn btn-outline btn-row btn-row-quiet"
-                      type="button"
-                      aria-label={`Disconnect ${p.name}`}
-                      onClick={() =>
-                        updateWorkspace((w) => ({
-                          connected: { ...w.connected, [p.id]: false }
-                        }))
-                      }
-                    >
-                      Disconnect
-                    </button>
-                  </>
+                {p.mediaOnly ? null : on && acct ? (
+                  <button
+                    className="btn btn-outline btn-row btn-row-quiet"
+                    type="button"
+                    disabled={disconnecting === acct.id}
+                    aria-label={`Disconnect ${p.name}`}
+                    onClick={() => void disconnect(acct)}
+                  >
+                    {disconnecting === acct.id ? 'Disconnecting…' : 'Disconnect'}
+                  </button>
                 ) : (
                   <button
                     className="btn btn-primary btn-row btn-row-wide"
                     type="button"
                     disabled={isConn}
-                    onClick={() => {
-                      setConnecting(p.id)
-                      later(() => {
-                        setConnecting(null)
-                        updateWorkspace((w) => ({
-                          connected: { ...w.connected, [p.id]: true },
-                          synced: { ...w.synced, [p.id]: 'just now' }
-                        }))
-                      }, 1100)
-                    }}
+                    onClick={() => void connect(p)}
                   >
                     {isConn ? 'Connecting…' : 'Connect'}
                   </button>
@@ -137,6 +312,103 @@ function Accounts() {
           </span>
           More platforms coming soon
         </div>
+      </section>
+
+      <section className="card card-stack" aria-labelledby="ons-h">
+        <h2 id="ons-h" className="card-title card-title-gap">
+          Posting account
+        </h2>
+        {session === null ? (
+          <p className="muted">Checking your Onscript link…</p>
+        ) : session.linked ? (
+          <>
+            <p className="muted">
+              Linked to <strong>{session.email}</strong>. Posts go out from your
+              own socials.
+            </p>
+            <div className="inline-form">
+              <button
+                className="btn btn-outline btn-form"
+                type="button"
+                disabled={linkBusy}
+                onClick={() => void unlink()}
+              >
+                {linkBusy ? 'Unlinking…' : 'Unlink account'}
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="muted">
+              You are set up to post through CrowdPilot's shared demo account.
+              Link your own Onscript account to post from your own socials.
+            </p>
+            {!otpSent ? (
+              <form
+                className="inline-form"
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  void startLink()
+                }}
+              >
+                <label htmlFor="cp-ons" className="sr-only">
+                  Onscript account email
+                </label>
+                <input
+                  id="cp-ons"
+                  className="field field-sm"
+                  type="email"
+                  required
+                  placeholder="you@yourbusiness.com"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+                <button
+                  className="btn btn-primary btn-form"
+                  type="submit"
+                  disabled={linkBusy || !email.trim()}
+                >
+                  {linkBusy ? 'Sending…' : 'Link your own socials'}
+                </button>
+              </form>
+            ) : (
+              <form
+                className="inline-form"
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  void verifyLink()
+                }}
+              >
+                <label htmlFor="cp-otp" className="sr-only">
+                  Verification code
+                </label>
+                <input
+                  id="cp-otp"
+                  className="field field-sm"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  required
+                  placeholder="Code sent to your email"
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value)}
+                />
+                <button
+                  className="btn btn-primary btn-form"
+                  type="submit"
+                  disabled={linkBusy || !otp.trim()}
+                >
+                  {linkBusy ? 'Verifying…' : 'Verify'}
+                </button>
+              </form>
+            )}
+          </>
+        )}
+        {linkError && (
+          <p className="form-error" role="alert">
+            {linkError}
+          </p>
+        )}
       </section>
 
       <section className="card card-stack" aria-labelledby="tn-h">

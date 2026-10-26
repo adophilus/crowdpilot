@@ -13,7 +13,7 @@ export class WorkspaceGetSuccess extends Schema.TaggedClass<WorkspaceGetSuccess>
   }
 ) {}
 
-export class WorkspacePutPayload extends Schema.Class<WorkspacePutPayload>()({
+export class WorkspacePutPayload extends Schema.Class<WorkspacePutPayload>('WorkspacePutPayload')({
   workspace: Schema.Unknown
 }) {}
 

@@ -54,7 +54,7 @@ const blank = (): WorkspaceState => ({
   profileUpdatedAt: null,
   profileError: false,
   picks: {},
-  connected: { x: true, fb: true, tt: true },
+  connected: { x: false, fb: false, ig: false },
   synced: { ...DEFAULT_SYNCED },
   tracked: [...DEFAULT_TRACKED],
   tones: { warm: true, local: true },
@@ -69,7 +69,14 @@ const load = (): WorkspaceState => {
   try {
     const raw = localStorage.getItem(KEY)
     if (!raw) return DEFAULT
-    return { ...blank(), ...(JSON.parse(raw) as Partial<WorkspaceState>) }
+    const parsed = JSON.parse(raw) as Partial<WorkspaceState>
+    return {
+      ...blank(),
+      ...parsed,
+      // Old copies may predate the tt→ig rename — keep the keys exact.
+      connected: { ...blank().connected, ...parsed.connected },
+      synced: { ...blank().synced, ...parsed.synced }
+    }
   } catch {
     return DEFAULT
   }
@@ -88,15 +95,73 @@ const persist = () => {
 
 export const getWorkspace = (): WorkspaceState => state
 
+const commit = (patch: Partial<WorkspaceState>): void => {
+  state = { ...state, ...patch }
+  persist()
+  for (const l of listeners) l()
+}
+
 export const updateWorkspace = (
   patch:
     | Partial<WorkspaceState>
     | ((s: WorkspaceState) => Partial<WorkspaceState>)
 ): void => {
-  const next = typeof patch === 'function' ? patch(state) : patch
-  state = { ...state, ...next }
-  persist()
-  for (const l of listeners) l()
+  commit(typeof patch === 'function' ? patch(state) : patch)
+  scheduleServerPush()
+}
+
+// ---- Server persistence (GET/PUT /workspace) ----
+// localStorage stays the source of truth for the UI; the server is the
+// cross-device mirror. Offline (or backend down) everything still works
+// locally — every fetch below is wrapped.
+
+let pushTimer: number | undefined
+
+const scheduleServerPush = (): void => {
+  if (typeof window === 'undefined') return
+  window.clearTimeout(pushTimer)
+  pushTimer = window.setTimeout(() => {
+    void api
+      .PUT('/workspace', { ...bearer(), body: { workspace: state } })
+      .catch(() => {
+        /* offline: localStorage still holds the state */
+      })
+  }, 800)
+}
+
+// Adopt the server copy over a just-claimed (fresh) local state. The local
+// Qloo profile wins when it is newer than the server's.
+const adoptServerWorkspace = async (): Promise<void> => {
+  try {
+    const { data } = await api.GET('/workspace', bearer())
+    const ws = data?.workspace as Partial<WorkspaceState> | null
+    if (!ws || typeof ws !== 'object') return
+    const fresh = blank()
+    const localProfileFresher =
+      state.profile != null &&
+      (state.profileUpdatedAt ?? 0) >= (ws.profileUpdatedAt ?? 0)
+    commit({
+      onboarded: Boolean(ws.onboarded),
+      goal: ws.goal ?? null,
+      niche: ws.niche ?? '',
+      business: ws.business?.first ? ws.business : fresh.business,
+      connected: { ...fresh.connected, ...ws.connected },
+      synced: { ...fresh.synced, ...ws.synced },
+      picks: ws.picks ?? {},
+      tracked: ws.tracked ?? [],
+      tones: ws.tones ?? fresh.tones,
+      lastTone: ws.lastTone ?? fresh.lastTone,
+      switches: ws.switches ?? { ...DEFAULT_SWITCHES },
+      ...(localProfileFresher
+        ? {}
+        : {
+            profile: ws.profile ?? null,
+            profileUpdatedAt: ws.profileUpdatedAt ?? null
+          })
+    })
+  } catch {
+    /* offline: stay on localStorage */
+  }
 }
 
 const subscribe = (l: () => void) => {
@@ -125,15 +190,17 @@ export const claimWorkspace = (owner: 'demo' | { email: string }): void => {
       local.split(/[._-]/)[0]?.replace(/^\w/, (c) => c.toUpperCase()) ||
       'there'
     fresh.business = { name: `${first}'s workspace`, city: '', type: 'venue', first }
-    fresh.connected = { x: false, fb: false, tt: false }
     fresh.tracked = []
   }
   state = { ...fresh, owner: id }
   persist()
   for (const l of listeners) l()
+  // Same owner's workspace may exist server-side (cross-device) — adopt it.
+  void adoptServerWorkspace()
 }
 
 export const resetWorkspace = (): void => {
+  if (typeof window !== 'undefined') window.clearTimeout(pushTimer)
   state = blank()
   try {
     localStorage.removeItem(KEY)

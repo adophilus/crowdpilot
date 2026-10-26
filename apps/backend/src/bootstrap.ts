@@ -12,7 +12,10 @@ import { SystemApiLive } from './features/system/route'
 import { AgentApiLive, AgentServiceLive } from './features/agent'
 import { LlmServiceLive } from './features/llm'
 import { OnscriptServiceLive } from './features/onscript'
+import { OnscriptApiLive } from './features/onscript/api'
+import { PostApiLive } from './features/post'
 import { QlooApiLive, QlooServiceAutoLive } from './features/qloo'
+import { WorkspaceApiLive } from './features/workspace'
 import { EvidenceStoreLive } from './features/evidence'
 
 // Consumers merged before providers (Layer.provideMerge ordering rule).
@@ -40,7 +43,10 @@ export const ApiEndpointLayer = AuthApiLive.pipe(
   Layer.provideMerge(SystemApiLive),
   Layer.provideMerge(QlooApiLive),
   Layer.provideMerge(AgentApiLive),
-  Layer.provideMerge(DemoApiLive)
+  Layer.provideMerge(DemoApiLive),
+  Layer.provideMerge(OnscriptApiLive),
+  Layer.provideMerge(PostApiLive),
+  Layer.provideMerge(WorkspaceApiLive)
 )
 
 export const ApiLive = HttpApiBuilder.api(Api).pipe(

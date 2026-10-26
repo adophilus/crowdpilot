@@ -5,7 +5,9 @@
 // workspace store (lib/workspace.ts) and comes from POST /qloo/profile.
 
 export type GoalId = 'break' | 'deep' | 'niche'
-export type PlatformId = 'x' | 'fb' | 'tt'
+export type PlatformId = 'x' | 'fb' | 'ig'
+// Onscript's own platform enum (POST /posts, /onscript/* payloads).
+export type ApiPlatform = 'TWITTER' | 'FACEBOOK' | 'INSTAGRAM'
 export type MatchFill = 100 | 60 | 35
 export type BizType = 'venue' | 'creator' | 'brand' | 'events' | 'agency'
 export type ToneId = 'warm' | 'playful' | 'local' | 'bold' | 'minimal'
@@ -50,11 +52,28 @@ export const GOALS: GoalDef[] = [
   }
 ]
 
-export const PLATFORMS: { id: PlatformId; name: string }[] = [
-  { id: 'x', name: 'X (Twitter)' },
-  { id: 'fb', name: 'Facebook' },
-  { id: 'tt', name: 'TikTok' }
+// Honest platform list: Onscript ships these three only, and Instagram
+// posting needs media upload we don't do yet — shown disabled.
+export const PLATFORMS: {
+  id: PlatformId
+  name: string
+  short: string
+  mediaOnly?: boolean
+}[] = [
+  { id: 'x', name: 'X (Twitter)', short: 'X' },
+  { id: 'fb', name: 'Facebook', short: 'Facebook' },
+  { id: 'ig', name: 'Instagram', short: 'Instagram', mediaOnly: true }
 ]
+
+// Fixture id ↔ Onscript platform enum.
+export const API_PLATFORM: Record<PlatformId, ApiPlatform> = {
+  x: 'TWITTER',
+  fb: 'FACEBOOK',
+  ig: 'INSTAGRAM'
+}
+
+export const platformShort = (p: ApiPlatform): string =>
+  PLATFORMS.find((x) => API_PLATFORM[x.id] === p)?.short ?? p
 
 export const NICHE_CHIPS = [
   'Plant-based foodies in Nairobi',
@@ -405,7 +424,7 @@ export const PLANS: PlanDef[] = [
       { title: 'Build the brunch playlist', detail: '40 songs of alté and soft Afrobeats', st: 'done' },
       { title: 'Add a brunch note to the menu board', detail: 'Short line for the counter and table cards', st: 'done' },
       { title: 'Review the announcement post', detail: 'Drafted in your voice, below', st: 'review' },
-      { title: 'Post to your accounts', detail: 'X, Facebook and TikTok', st: 'todo' }
+      { title: 'Post to your accounts', detail: 'X and Facebook', st: 'todo' }
     ]
   },
   {
@@ -434,7 +453,7 @@ export const PLANS: PlanDef[] = [
       { title: 'Shortlist local Afro-house DJs', detail: 'Pilot is finding DJs your crowd already follows', st: 'todo' },
       { title: 'Plan a late-night drinks menu', detail: 'Craft drinks and zobo-based mocktails', st: 'todo' },
       { title: 'Review the teaser post', detail: 'Drafted in your voice, below', st: 'review' },
-      { title: 'Post to your accounts', detail: 'X, Facebook and TikTok', st: 'todo' }
+      { title: 'Post to your accounts', detail: 'X and Facebook', st: 'todo' }
     ]
   },
   {
@@ -446,7 +465,7 @@ export const PLANS: PlanDef[] = [
     post: '',
     steps: [
       { title: 'Set up the weekly poll', detail: 'Four songs to choose from', st: 'done' },
-      { title: 'Post the poll', detail: 'Went out on X, Facebook and TikTok', st: 'done' },
+      { title: 'Post the poll', detail: 'Went out on X and Facebook', st: 'done' },
       { title: 'Add the winners to Friday’s playlist', detail: 'Done automatically', st: 'done' },
       { title: 'Thank voters', detail: 'Short thank-you post', st: 'done' }
     ]
@@ -466,7 +485,7 @@ export const draftPlanFor = (d: DirectionDef): PlanDef => ({
     { title: 'Pilot is drafting the steps', detail: d.summary, st: 'todo' },
     { title: 'Review the plan', detail: 'You’ll get a say before anything runs', st: 'todo' },
     { title: 'Write the announcement post', detail: 'Drafted in your voice', st: 'todo' },
-    { title: 'Post to your accounts', detail: 'X, Facebook and TikTok', st: 'todo' }
+    { title: 'Post to your accounts', detail: 'X and Facebook', st: 'todo' }
   ]
 })
 
@@ -491,9 +510,9 @@ export const QUICK_PROMPTS = [
 // ---- Accounts ----
 
 export const DEFAULT_SYNCED: Record<PlatformId, string> = {
-  x: '2 hours ago',
-  fb: '2 hours ago',
-  tt: '3 hours ago'
+  x: '',
+  fb: '',
+  ig: ''
 }
 
 export const DEFAULT_TRACKED = [

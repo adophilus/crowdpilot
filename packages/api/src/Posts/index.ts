@@ -28,7 +28,7 @@ export class PostsListSuccess extends Schema.TaggedClass<PostsListSuccess>()(
   { posts: Schema.Array(PostSummary) }
 ) {}
 
-export class CreatePostPayload extends Schema.Class<CreatePostPayload>()({
+export class CreatePostPayload extends Schema.Class<CreatePostPayload>('CreatePostPayload')({
   text: Schema.String,
   platforms: Schema.Array(Platform).pipe(Schema.minItems(1)),
   publishNow: Schema.optional(Schema.Boolean),

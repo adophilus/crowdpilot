@@ -1,12 +1,16 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
+import { api, bearer } from '../../lib/api'
 import { Icon } from '../../components/ui'
 import {
+  API_PLATFORM,
   DIRECTIONS,
   draftPlanFor,
   PLANS,
+  type ApiPlatform,
   type PlanDef,
   PLATFORMS,
+  platformShort,
   type PlatformId,
   type StepState
 } from '../../lib/fixtures'
@@ -18,9 +22,20 @@ export const Route = createFileRoute('/_app/plans')({
   component: Plans
 })
 
-type When = 'now' | 'sched' | 'best'
-type Ran = 'live' | 'sched'
-type StepView = StepState | 'running'
+type When = 'now' | 'sched'
+type Ship =
+  | { phase: 'publishing'; note: string }
+  | { phase: 'scheduled'; note: string }
+  | { phase: 'done'; links: { label: string; url: string }[]; note: string }
+  | { phase: 'failed'; reason: string }
+type ShippedPost = {
+  id: string
+  text: string
+  platforms: ApiPlatform[]
+  status: string
+  permalink?: string
+  createdAt: string
+}
 
 const STATUS: Record<PlanDef['base'], string> = {
   ready: 'Ready to run',
@@ -29,13 +44,45 @@ const STATUS: Record<PlanDef['base'], string> = {
   done: 'Done'
 }
 
-const STEP_LABEL: Record<StepView, string> = {
+const STEP_LABEL: Record<StepState, string> = {
   done: 'Done',
   review: 'Needs review',
   todo: 'To do',
-  sched: 'Scheduled',
-  running: 'Running…'
+  sched: 'Scheduled'
 }
+
+// Onscript PostStatus → the chip vocabulary this screen already uses.
+const shipChip = (status: string): string =>
+  status === 'PUBLISHED' || status === 'PARTIALLY_PUBLISHED'
+    ? 'Live'
+    : status === 'SCHEDULED'
+      ? 'Scheduled'
+      : status === 'PUBLISHING'
+        ? 'Running'
+        : status === 'FAILED'
+          ? 'Failed'
+          : 'Drafting'
+
+const TERMINAL = ['PUBLISHED', 'PARTIALLY_PUBLISHED', 'FAILED']
+
+const timeAgo = (iso: string): string => {
+  const mins = Math.round((Date.now() - new Date(iso).getTime()) / 60000)
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins} min ago`
+  const hrs = Math.round(mins / 60)
+  if (hrs < 24) return `${hrs}h ago`
+  return `${Math.round(hrs / 24)}d ago`
+}
+
+const excerpt = (text: string): string =>
+  text.length > 92 ? `${text.slice(0, 92).trimEnd()}…` : text
+
+const localDT = (d: Date): string => {
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 function Plans() {
   const ws = useWorkspace()
@@ -58,65 +105,206 @@ function Plans() {
     Record<string, Record<PlatformId, boolean>>
   >({})
   const [when, setWhen] = useState<Record<string, When>>({})
-  const [ran, setRan] = useState<Record<string, Ran>>({})
-  const [running, setRunning] = useState<string | null>(null)
-  const [runStep, setRunStep] = useState(0)
-  const iv = useRef<number | undefined>(undefined)
-  useEffect(() => () => clearInterval(iv.current), [])
+  const [schedAt, setSchedAt] = useState(localDT(new Date(Date.now() + 3600_000)))
+  const [ships, setShips] = useState<Record<string, Ship>>({})
+  const [shipError, setShipError] = useState('')
+
+  // Real connected accounts (from Onscript) gate the platform toggles.
+  const [connected, setConnected] = useState<PlatformId[]>([])
+  // Shipped posts, refreshed on mount and after every ship.
+  const [shipped, setShipped] = useState<ShippedPost[] | null>(null)
+
+  const loadShipped = async (): Promise<void> => {
+    try {
+      const { data } = await api.GET('/posts', bearer())
+      if (data) setShipped(data.posts)
+    } catch {
+      /* offline: keep whatever we had */
+    }
+  }
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const { data } = await api.GET('/onscript/accounts', bearer())
+        const ids = data
+          ? PLATFORMS.filter(
+              (p) =>
+                !p.mediaOnly &&
+                data.accounts.some(
+                  (a) => a.platform === API_PLATFORM[p.id] && a.isActive
+                )
+            ).map((p) => p.id)
+          : []
+        setConnected(ids)
+        // Snap untouched plans to what's actually publishable.
+        setTargets((t) => {
+          const next = { ...t }
+          for (const d of defs)
+            if (!next[d.id])
+              next[d.id] = {
+                x: ids.includes('x'),
+                fb: ids.includes('fb'),
+                ig: false
+              }
+          return next
+        })
+      } catch {
+        setConnected([])
+      }
+      void loadShipped()
+    })()
+  }, [])
 
   const view = (d: PlanDef) => {
-    const isRunning = running === d.id
-    const r = ran[d.id]
-    const steps = d.steps.map((s, i) => {
-      let k: StepView = s.st
-      if (r) k = r === 'sched' && i === d.steps.length - 1 ? 'sched' : 'done'
-      else if (isRunning) k = i < runStep ? 'done' : i === runStep ? 'running' : s.st
-      return { ...s, k }
-    })
+    const ship = ships[d.id]
+    const isRunning = ship?.phase === 'publishing'
+    const steps = d.steps.map((s) => ({ ...s, k: s.st }))
     const done = steps.filter((s) => s.k === 'done').length
     let status = STATUS[d.base]
     if (isRunning) status = 'Running'
-    if (r === 'live') status = 'Live'
-    if (r === 'sched') status = 'Scheduled'
-    return { steps, done, status, isRunning, ran: r }
+    if (ship?.phase === 'done') status = 'Live'
+    if (ship?.phase === 'scheduled') status = 'Scheduled'
+    return { steps, done, status, isRunning, ship }
   }
 
   const d = defs.find((x) => x.id === sel) ?? defs[0]
+  const ship = ships[d.id]
   const v = view(d)
   const draft = drafts[d.id] ?? d.post
-  const tg = targets[d.id] ?? { x: true, fb: true, tt: true }
-  const w: When = when[d.id] ?? (d.base === 'scheduled' ? 'sched' : 'now')
+  const tg =
+    targets[d.id] ?? { x: connected.includes('x'), fb: connected.includes('fb'), ig: false }
+  const w: When = when[d.id] ?? 'now'
+  const isConnected = (p: (typeof PLATFORMS)[number]): boolean =>
+    connected.includes(p.id)
+  const avail = PLATFORMS.filter((p) => !p.mediaOnly && isConnected(p))
+  const chosen = avail.filter((p) => tg[p.id])
   const locked =
-    v.isRunning || Boolean(v.ran) || d.base === 'done' || d.base === 'scheduled'
-  const tnames = PLATFORMS.filter((p) => tg[p.id]).map((p) => p.name)
+    v.isRunning ||
+    ship?.phase === 'done' ||
+    ship?.phase === 'scheduled' ||
+    d.base === 'done' ||
+    d.base === 'scheduled'
+  const tnames = chosen.map((p) => p.short)
   const tlist =
     tnames.length > 1
       ? `${tnames.slice(0, -1).join(', ')} and ${tnames[tnames.length - 1]}`
       : (tnames[0] ?? 'your accounts')
-  const schedLabel = d.whenLabel ?? 'Thu 18:00'
-  const whenText =
-    w === 'now'
-      ? ''
-      : w === 'best'
-        ? 'at the best time for your audience'
-        : `for ${schedLabel}`
 
-  const run = () => {
-    clearInterval(iv.current)
-    const first = d.steps.findIndex((s) => s.st !== 'done')
-    let n = first < 0 ? d.steps.length : first
-    setRunning(d.id)
-    setRunStep(n)
-    iv.current = window.setInterval(() => {
-      n += 1
-      if (n > d.steps.length) {
-        clearInterval(iv.current)
-        setRunning(null)
-        setRan((r) => ({ ...r, [d.id]: w === 'now' ? 'live' : 'sched' }))
-      } else {
-        setRunStep(n)
+  // Poll GET /posts/:id until Onscript reports a terminal status.
+  const pollPost = async (
+    id: string
+  ): Promise<{
+    status: string
+    permalink?: string
+    perPlatform: { platform: ApiPlatform; status: string; url?: string; failureReason?: string }[]
+  } | null> => {
+    const deadline = Date.now() + 90_000
+    while (Date.now() < deadline) {
+      await sleep(2000)
+      try {
+        const { data } = await api.GET('/posts/{id}', {
+          ...bearer(),
+          params: { path: { id } }
+        })
+        if (data && TERMINAL.includes(data.status)) return data
+      } catch {
+        /* transient — keep polling */
       }
-    }, 700)
+    }
+    return null
+  }
+
+  const run = async () => {
+    if (chosen.length === 0 || !draft.trim()) return
+    setShipError('')
+    const platforms = chosen.map((p) => API_PLATFORM[p.id])
+    if (w === 'now') {
+      setShips((s) => ({
+        ...s,
+        [d.id]: { phase: 'publishing', note: `Publishing to ${tlist}…` }
+      }))
+      try {
+        const { data, error } = await api.POST('/posts', {
+          ...bearer(),
+          body: { text: draft, platforms, publishNow: true }
+        })
+        if (error || !data) {
+          setShips((s) => ({ ...s, [d.id]: { phase: 'failed', reason: error && 'message' in error && error.message ? error.message : "Couldn't create the post. Try again." } }))
+          return
+        }
+        const detail = await pollPost(data.id)
+        if (!detail) {
+          setShips((s) => ({
+            ...s,
+            [d.id]: {
+              phase: 'failed',
+              reason: 'Still publishing on Onscript — check Shipped below in a moment.'
+            }
+          }))
+        } else if (detail.status === 'FAILED') {
+          const why = detail.perPlatform.find((x) => x.failureReason)
+          setShips((s) => ({
+            ...s,
+            [d.id]: { phase: 'failed', reason: why?.failureReason ?? 'Onscript reported a failure.' }
+          }))
+        } else {
+          const links = detail.perPlatform
+            .filter((x) => x.url)
+            .map((x) => ({ label: platformShort(x.platform), url: x.url as string }))
+          const failedOn = detail.perPlatform.filter(
+            (x) => x.status === 'FAILED' || x.failureReason
+          )
+          setShips((s) => ({
+            ...s,
+            [d.id]: {
+              phase: 'done',
+              links,
+              note: failedOn
+                .map((x) => `${platformShort(x.platform)} failed${x.failureReason ? `: ${x.failureReason}` : ''}`)
+                .join(' · ')
+            }
+          }))
+        }
+      } catch {
+        setShips((s) => ({
+          ...s,
+          [d.id]: { phase: 'failed', reason: 'Connection lost while publishing. Try again.' }
+        }))
+      } finally {
+        void loadShipped()
+      }
+    } else {
+      const ts = Math.floor(new Date(schedAt).getTime() / 1000)
+      if (!Number.isFinite(ts) || ts <= Math.floor(Date.now() / 1000)) {
+        setShipError('Pick a time in the future to schedule.')
+        return
+      }
+      setShips((s) => ({
+        ...s,
+        [d.id]: { phase: 'publishing', note: 'Scheduling…' }
+      }))
+      try {
+        const { data, error } = await api.POST('/posts', {
+          ...bearer(),
+          body: { text: draft, platforms, publishNow: false, scheduledAt: ts }
+        })
+        setShips((s) => ({
+          ...s,
+          [d.id]:
+            error || !data
+              ? { phase: 'failed', reason: error && 'message' in error && error.message ? error.message : "Couldn't schedule the post. Try again." }
+              : { phase: 'scheduled', note: `Scheduled for ${new Date(schedAt).toLocaleString()}.` }
+        }))
+      } catch {
+        setShips((s) => ({
+          ...s,
+          [d.id]: { phase: 'failed', reason: 'Connection lost. Try again.' }
+        }))
+      } finally {
+        void loadShipped()
+      }
+    }
   }
 
   return (
@@ -190,7 +378,7 @@ function Plans() {
             </Link>
           </div>
 
-          {d.base === 'drafting' && !v.ran && !v.isRunning && (
+          {d.base === 'drafting' && !v.ship && !v.isRunning && (
             <div role="status" className="note-row">
               <span className="accent-dot accent-dot-lg" />
               Pilot is still drafting this plan. You can review what's ready so
@@ -240,13 +428,20 @@ function Plans() {
                   <legend className="sr-only">Post to</legend>
                   {PLATFORMS.map((p) => {
                     const on = Boolean(tg[p.id])
+                    const ok = isConnected(p)
+                    const hint = p.mediaOnly
+                      ? 'Needs media uploads — soon'
+                      : ok
+                        ? undefined
+                        : 'No connected account — connect it on the Accounts page'
                     return (
                       <button
                         key={p.id}
                         type="button"
                         className="toggle-chip"
-                        aria-pressed={on}
-                        disabled={locked}
+                        aria-pressed={on && ok}
+                        title={hint}
+                        disabled={locked || !ok}
                         onClick={() =>
                           setTargets((t) => ({
                             ...t,
@@ -254,17 +449,22 @@ function Plans() {
                           }))
                         }
                       >
-                        {p.name}
+                        {p.short}
+                        {!ok && <span className="muted-xs">{p.mediaOnly ? ' · needs media — soon' : ' · not connected'}</span>}
                       </button>
                     )
                   })}
+                  {avail.length === 0 && (
+                    <Link to="/accounts" className="text-link text-sm">
+                      Connect accounts to publish
+                    </Link>
+                  )}
                 </fieldset>
                 <div role="radiogroup" aria-label="When" className="segmented segmented-sm">
                   {(
                     [
                       ['now', 'Post now'],
-                      ['sched', schedLabel],
-                      ['best', 'Best time']
+                      ['sched', 'Schedule']
                     ] as [When, string][]
                   ).map(([id, label]) => (
                     // biome-ignore lint/a11y/useSemanticElements: segmented radio from the design
@@ -282,16 +482,56 @@ function Plans() {
                   ))}
                 </div>
               </div>
+              {w === 'sched' && !locked && (
+                <div className="inline-form">
+                  <label htmlFor="cp-sched" className="sr-only">
+                    Date and time
+                  </label>
+                  <input
+                    id="cp-sched"
+                    className="field field-sm"
+                    type="datetime-local"
+                    value={schedAt}
+                    min={localDT(new Date())}
+                    onChange={(e) => setSchedAt(e.target.value)}
+                  />
+                </div>
+              )}
             </div>
           )}
 
-          {v.ran && (
+          {ship?.phase === 'done' && (
             <div role="status" className="state-live fade-in">
               <Icon name="check" size={18} stroke={2.6} />
-              {v.ran === 'live'
-                ? `Done. Posted to ${tlist}.`
-                : `Scheduled. Posting to ${tlist} ${whenText}.`}
+              <span>
+                Posted{tnames.length > 0 ? ` to ${tlist}` : ''}.{' '}
+                {ship.links.map((l, i) => (
+                  <span key={l.url}>
+                    {i > 0 && ' · '}
+                    <a className="text-link" href={l.url} target="_blank" rel="noreferrer">
+                      View on {l.label}
+                    </a>
+                  </span>
+                ))}
+                {ship.note && <span className="muted-sm"> {ship.note}</span>}
+              </span>
             </div>
+          )}
+          {ship?.phase === 'scheduled' && (
+            <div role="status" className="state-live fade-in">
+              <Icon name="clock" size={18} stroke={2.4} />
+              {ship.note}
+            </div>
+          )}
+          {ship?.phase === 'failed' && (
+            <div role="alert" className="card-danger card card-stack fade-in">
+              <strong>Didn't ship.</strong> {ship.reason}
+            </div>
+          )}
+          {shipError && (
+            <p className="form-error" role="alert">
+              {shipError}
+            </p>
           )}
 
           {!locked && (
@@ -299,8 +539,8 @@ function Plans() {
               <button
                 className="btn btn-primary btn-arrow"
                 type="button"
-                disabled={tnames.length === 0}
-                onClick={run}
+                disabled={chosen.length === 0}
+                onClick={() => void run()}
               >
                 {w === 'now' ? 'Run it now' : 'Schedule it'}
                 <span className="btn-arrow-dot is-accent" aria-hidden="true">
@@ -313,11 +553,58 @@ function Plans() {
           {v.isRunning && (
             <div role="status" className="running-row">
               <span className="accent-dot accent-dot-lg pulse" />
-              Running the plan…
+              {ship?.phase === 'publishing' ? ship.note : ''}
             </div>
           )}
         </section>
       </div>
+
+      <section className="card card-stack" aria-labelledby="shipped-h">
+        <div className="row-between row-wrap">
+          <h2 id="shipped-h" className="card-title card-title-gap">
+            Shipped
+          </h2>
+          <button
+            type="button"
+            className="btn btn-outline btn-row"
+            onClick={() => void loadShipped()}
+          >
+            Refresh
+          </button>
+        </div>
+        {shipped === null ? (
+          <p className="muted">Loading…</p>
+        ) : shipped.length === 0 ? (
+          <p className="muted">
+            Nothing shipped yet. Run a plan above and it lands here with real
+            links.
+          </p>
+        ) : (
+          shipped.map((p) => (
+            <div key={p.id} className="plan-line msg">
+              <div className="plan-line-text">
+                <div className="plan-line-title">{excerpt(p.text)}</div>
+                <div className="plan-line-next">
+                  {p.platforms.map(platformShort).join(', ')} · {timeAgo(p.createdAt)}
+                </div>
+              </div>
+              <span className="status-chip" data-status={shipChip(p.status)}>
+                {shipChip(p.status)}
+              </span>
+              {p.permalink && (
+                <a
+                  className="text-link text-sm"
+                  href={p.permalink}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  View
+                </a>
+              )}
+            </div>
+          ))
+        )}
+      </section>
     </main>
   )
 }

@@ -1,10 +1,14 @@
 import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
-import { useEffect, useRef, useState } from 'react'
-import { Icon } from '../../components/ui'
-import { getToken } from '../../lib/api'
-import { NICHE_CHIPS, PLATFORMS, type PlatformId } from '../../lib/fixtures'
+import { useEffect, useState } from 'react'
+import { api, bearer, getToken } from '../../lib/api'
+import {
+  API_PLATFORM,
+  NICHE_CHIPS,
+  PLATFORMS
+} from '../../lib/fixtures'
 import { updateOnboarding, useOnboarding } from '../../lib/onboarding'
 import { updateWorkspace } from '../../lib/workspace'
+import { Icon } from '../../components/ui'
 
 export const Route = createFileRoute('/_onboarding/onboarding/connect')({
   ssr: false,
@@ -17,20 +21,35 @@ export const Route = createFileRoute('/_onboarding/onboarding/connect')({
 function OnboardingConnect() {
   const navigate = useNavigate()
   const ob = useOnboarding()
-  const [connecting, setConnecting] = useState<PlatformId | null>(null)
-  const timers = useRef<number[]>([])
-  const later = (fn: () => void, ms: number) => {
-    timers.current.push(window.setTimeout(fn, ms))
-  }
+  // Read-only peek at real accounts. No connect flow here — onboarding stays
+  // unassisted; real connecting lives on the Accounts page.
+  const [apiConnected, setApiConnected] = useState<Record<string, boolean>>({})
+
   useEffect(() => {
-    const list = timers.current
+    let cancelled = false
+    void (async () => {
+      try {
+        const { data } = await api.GET('/onscript/accounts', bearer())
+        if (cancelled || !data) return
+        const map = {
+          x: data.accounts.some((a) => a.platform === API_PLATFORM.x && a.isActive),
+          fb: data.accounts.some((a) => a.platform === API_PLATFORM.fb && a.isActive),
+          ig: data.accounts.some((a) => a.platform === API_PLATFORM.ig && a.isActive)
+        }
+        setApiConnected(map)
+        // Mirror into onboarding state so the reading/profile copy is honest.
+        updateOnboarding((s) => ({ connected: { ...s.connected, x: map.x, fb: map.fb } }))
+      } catch {
+        /* backend quiet? keep the niche path */
+      }
+    })()
     return () => {
-      for (const t of list) clearTimeout(t)
+      cancelled = true
     }
   }, [])
 
   const isBreak = ob.goal === 'break'
-  const anyConnected = PLATFORMS.some((p) => ob.connected[p.id])
+  const anyConnected = PLATFORMS.some((p) => Boolean(apiConnected[p.id]) || Boolean(ob.connected[p.id]))
   const nicheName = ob.niche.trim()
 
   const startRead = () => {
@@ -38,9 +57,9 @@ function OnboardingConnect() {
       goal: ob.goal,
       niche: nicheName,
       connected: {
-        x: Boolean(ob.connected.x),
-        fb: Boolean(ob.connected.fb),
-        tt: Boolean(ob.connected.tt)
+        x: Boolean(apiConnected.x ?? ob.connected.x),
+        fb: Boolean(apiConnected.fb ?? ob.connected.fb),
+        ig: false
       }
     })
     void navigate({ to: '/onboarding/reading' })
@@ -61,12 +80,11 @@ function OnboardingConnect() {
       <div className="connect-stack">
         <section aria-label="Connect accounts" style={{ order: isBreak ? 2 : 1 }}>
           <div className="label">
-            {isBreak ? 'Optional: connect your accounts' : 'Your accounts'}
+            {isBreak ? 'Optional: your accounts' : 'Your accounts'}
           </div>
           <div className="platform-list">
             {PLATFORMS.map((p) => {
-              const on = Boolean(ob.connected[p.id])
-              const wait = connecting === p.id
+              const on = Boolean(apiConnected[p.id])
               return (
                 <div key={p.id} className="platform-row" data-on={on || undefined}>
                   <span className="platform-glyph" aria-hidden="true">
@@ -75,36 +93,16 @@ function OnboardingConnect() {
                   <span className="platform-text">
                     <span className="platform-name">{p.name}</span>
                     <span className="platform-sub">
-                      {on
-                        ? 'Connected · reading followers & engagement'
-                        : wait
-                          ? 'Waiting for permission…'
-                          : 'Read-only access to audience signals'}
+                      {p.mediaOnly
+                        ? 'Needs media uploads — soon'
+                        : on
+                          ? 'Connected · reading followers & engagement'
+                          : 'Not connected'}
                     </span>
                   </span>
-                  <button
-                    className={`btn btn-connect${on ? ' is-on' : ''}`}
-                    type="button"
-                    disabled={wait}
-                    aria-label={`${on ? 'Disconnect' : 'Connect'} ${p.name}`}
-                    onClick={() => {
-                      if (on) {
-                        updateOnboarding((s) => ({
-                          connected: { ...s.connected, [p.id]: false }
-                        }))
-                        return
-                      }
-                      setConnecting(p.id)
-                      later(() => {
-                        setConnecting(null)
-                        updateOnboarding((s) => ({
-                          connected: { ...s.connected, [p.id]: true }
-                        }))
-                      }, 1100)
-                    }}
-                  >
-                    {on ? 'Connected' : wait ? 'Connecting…' : 'Connect'}
-                  </button>
+                  <span className="conn-chip" data-on={on || undefined}>
+                    {on ? 'Connected' : p.mediaOnly ? 'Soon' : 'Off'}
+                  </span>
                 </div>
               )
             })}
@@ -115,6 +113,10 @@ function OnboardingConnect() {
               More platforms coming soon
             </div>
           </div>
+          <p className="quiet-note">
+            Connect your own accounts on the Accounts page after setup — you can
+            post via CrowdPilot's shared demo account either way.
+          </p>
         </section>
         <section aria-label="Describe a niche" style={{ order: isBreak ? 1 : 2 }}>
           <label htmlFor="cp-niche" className="label">

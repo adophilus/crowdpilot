@@ -22,11 +22,11 @@ export class SessionStatusSuccess extends Schema.TaggedClass<SessionStatusSucces
   }
 ) {}
 
-export class LinkStartPayload extends Schema.Class<LinkStartPayload>()({
+export class LinkStartPayload extends Schema.Class<LinkStartPayload>('LinkStartPayload')({
   email: Schema.String
 }) {}
 
-export class LinkVerifyPayload extends Schema.Class<LinkVerifyPayload>()({
+export class LinkVerifyPayload extends Schema.Class<LinkVerifyPayload>('LinkVerifyPayload')({
   email: Schema.String,
   otp: Schema.String
 }) {}
@@ -36,7 +36,9 @@ export class LinkVerifySuccess extends Schema.TaggedClass<LinkVerifySuccess>()(
   { email: Schema.String }
 ) {}
 
-export class OkSuccess extends Schema.TaggedClass<OkSuccess>()('OkSuccess', {}) {}
+export class OkSuccess extends Schema.TaggedClass<OkSuccess>()('OkSuccess', {
+  ok: Schema.Literal(true)
+}) {}
 
 export class AccountsSuccess extends Schema.TaggedClass<AccountsSuccess>()(
   'AccountsSuccess',
@@ -53,7 +55,7 @@ export class AccountsSuccess extends Schema.TaggedClass<AccountsSuccess>()(
   }
 ) {}
 
-export class ConnectUrlPayload extends Schema.Class<ConnectUrlPayload>()({
+export class ConnectUrlPayload extends Schema.Class<ConnectUrlPayload>('ConnectUrlPayload')({
   platform: Platform
 }) {}
 
@@ -62,7 +64,7 @@ export class ConnectUrlSuccess extends Schema.TaggedClass<ConnectUrlSuccess>()(
   { authUrl: Schema.String }
 ) {}
 
-export class DisconnectPayload extends Schema.Class<DisconnectPayload>()({
+export class DisconnectPayload extends Schema.Class<DisconnectPayload>('DisconnectPayload')({
   accountId: Schema.String
 }) {}
 
@@ -106,6 +108,7 @@ const linkDisconnect = HttpApiEndpoint.post(
 )
   .addSuccess(OkSuccess)
   .addError(UnauthorizedError, { status: 401 })
+  .addError(OnscriptError, { status: 502 })
   .middleware(SessionMiddleware)
   .annotate(
     OpenApi.Description,
@@ -114,6 +117,7 @@ const linkDisconnect = HttpApiEndpoint.post(
 
 const accounts = HttpApiEndpoint.get('onscriptAccounts', '/onscript/accounts')
   .addSuccess(AccountsSuccess)
+  .addError(BadRequestError, { status: 400 })
   .addError(UnauthorizedError, { status: 401 })
   .addError(OnscriptError, { status: 502 })
   .middleware(SessionMiddleware)
@@ -143,6 +147,7 @@ const disconnectAccount = HttpApiEndpoint.post(
 )
   .setPayload(DisconnectPayload)
   .addSuccess(OkSuccess)
+  .addError(BadRequestError, { status: 400 })
   .addError(UnauthorizedError, { status: 401 })
   .addError(OnscriptError, { status: 502 })
   .middleware(SessionMiddleware)
