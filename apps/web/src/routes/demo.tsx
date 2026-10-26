@@ -61,7 +61,7 @@ function DemoPage() {
             >
               Try again
             </button>
-            <Link to="/onboarding" className="btn-text">
+            <Link to="/onboarding/account" className="btn-text">
               Create an account instead
             </Link>
           </div>

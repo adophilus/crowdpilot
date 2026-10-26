@@ -29,7 +29,9 @@ import {
 export const Route = createFileRoute('/_app')({
   ssr: false,
   beforeLoad: () => {
-    if (!getToken()) throw redirect({ to: '/onboarding', replace: true })
+    if (!getToken()) {
+      throw redirect({ to: '/onboarding/account', replace: true })
+    }
   },
   component: AppLayout
 })
@@ -103,7 +105,7 @@ function Sidebar() {
     clearSession()
     resetWorkspace()
     profileRequested = false
-    void navigate({ to: '/onboarding', replace: true })
+    void navigate({ to: '/onboarding/account', replace: true })
   }
 
   const name = ws.business.name || 'Your workspace'

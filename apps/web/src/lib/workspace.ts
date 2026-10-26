@@ -22,6 +22,9 @@ export type Pick = 'taken' | 'skip'
 
 export interface WorkspaceState {
   owner: string | null
+  // Set when the user finishes onboarding ("Open my dashboard"). Lives here so
+  // sign-out (resetWorkspace) and a different owner (claimWorkspace) clear it.
+  onboarded: boolean
   business: { name: string; city: string; type: BizType; first: string }
   goal: GoalId | null
   niche: string
@@ -42,6 +45,7 @@ const KEY = 'crowdpilot_workspace'
 
 const blank = (): WorkspaceState => ({
   owner: null,
+  onboarded: false,
   business: { ...DEMO_BUSINESS, first: DEMO_BUSINESS.owner },
   goal: null,
   niche: '',
@@ -140,6 +144,11 @@ export const resetWorkspace = (): void => {
 }
 
 export type ReadResult = 'ok' | 'unauthorized' | 'error'
+
+// Finished onboarding = explicitly clicked "Open my dashboard" (the flag), or
+// a real Qloo profile is already cached for this workspace.
+export const hasCompletedOnboarding = (): boolean =>
+  state.onboarded || Boolean(state.profile)
 
 // The real Qloo read. Falls back gracefully: on failure the screens keep any
 // earlier profile (or fixtures) and flag profileError.

@@ -1,3 +1,4 @@
+import { QueryClient } from '@tanstack/react-query'
 import {
   createFetchClient,
   createTanstackQueryClient
@@ -9,6 +10,10 @@ export const API_URL: string =
 
 export const api = createFetchClient(API_URL)
 export const queryClient = createTanstackQueryClient(api)
+
+// The real TanStack QueryClient — shared by the root provider and the router
+// context (guards/leaf routes can prefetch or read cached data in beforeLoad).
+export const tanstackQueryClient = new QueryClient()
 
 export type Profile = components['schemas']['ProfileSuccess']
 export type Evidence = components['schemas']['EvidenceSuccess']

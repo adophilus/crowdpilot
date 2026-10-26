@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { API_URL, storeSession } from '../lib/api'
-import { claimWorkspace } from '../lib/workspace'
+import { claimWorkspace, hasCompletedOnboarding } from '../lib/workspace'
 
 export const Route = createFileRoute('/auth/callback')({
   ssr: false,
@@ -37,7 +37,8 @@ function AuthCallback() {
         storeSession(token, data.user)
         claimWorkspace({ email: data.user.email })
         setDone(true)
-        navigate({ to: '/onboarding' })
+        // Returning users who already finished onboarding go straight in.
+        navigate({ to: hasCompletedOnboarding() ? '/home' : '/onboarding/goal' })
       })
       .catch(() => {
         if (!cancelled) setError('Your Google session couldn’t be verified. Please try again.')
@@ -55,7 +56,7 @@ function AuthCallback() {
             <>
               <h1 className="onb-title">Sign-in hit a snag.</h1>
               <p className="onb-lede">{error}</p>
-              <Link to="/onboarding" className="btn btn-primary">
+              <Link to="/onboarding/account" className="btn btn-primary">
                 Back to sign-in
               </Link>
             </>
@@ -63,7 +64,11 @@ function AuthCallback() {
             <>
               <h1 className="onb-title">{done ? 'Almost there…' : 'Signing you in…'}</h1>
               <p className="onb-lede">
-                {done ? 'Taking you back to onboarding.' : 'Finishing up with Google.'}
+                {done
+                  ? hasCompletedOnboarding()
+                    ? 'Taking you to your workspace.'
+                    : 'Taking you back to onboarding.'
+                  : 'Finishing up with Google.'}
               </p>
             </>
           )}

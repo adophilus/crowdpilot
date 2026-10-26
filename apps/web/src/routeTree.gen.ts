@@ -11,8 +11,8 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppRouteImport } from './routes/_app'
+import { Route as OnboardingRouteImport } from './routes/_onboarding'
 import { Route as DemoRouteImport } from './routes/demo'
-import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as AppAccountsRouteImport } from './routes/_app/accounts'
 import { Route as AppAudienceRouteImport } from './routes/_app/audience'
 import { Route as AppDirectionsRouteImport } from './routes/_app/directions'
@@ -20,6 +20,11 @@ import { Route as AppHomeRouteImport } from './routes/_app/home'
 import { Route as AppPlansRouteImport } from './routes/_app/plans'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
+import { Route as OnboardingOnboardingAccountRouteImport } from './routes/_onboarding/onboarding.account'
+import { Route as OnboardingOnboardingConnectRouteImport } from './routes/_onboarding/onboarding.connect'
+import { Route as OnboardingOnboardingGoalRouteImport } from './routes/_onboarding/onboarding.goal'
+import { Route as OnboardingOnboardingProfileRouteImport } from './routes/_onboarding/onboarding.profile'
+import { Route as OnboardingOnboardingReadingRouteImport } from './routes/_onboarding/onboarding.reading'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -30,14 +35,13 @@ const AppRoute = AppRouteImport.update({
   id: '/_app',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OnboardingRoute = OnboardingRouteImport.update({
+  id: '/_onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DemoRoute = DemoRouteImport.update({
   id: '/demo',
   path: '/demo',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const OnboardingRoute = OnboardingRouteImport.update({
-  id: '/onboarding',
-  path: '/onboarding',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppAccountsRoute = AppAccountsRouteImport.update({
@@ -75,11 +79,40 @@ const AuthCallbackRoute = AuthCallbackRouteImport.update({
   path: '/auth/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OnboardingOnboardingAccountRoute =
+  OnboardingOnboardingAccountRouteImport.update({
+    id: '/onboarding/account',
+    path: '/onboarding/account',
+    getParentRoute: () => OnboardingRoute,
+  } as any)
+const OnboardingOnboardingConnectRoute =
+  OnboardingOnboardingConnectRouteImport.update({
+    id: '/onboarding/connect',
+    path: '/onboarding/connect',
+    getParentRoute: () => OnboardingRoute,
+  } as any)
+const OnboardingOnboardingGoalRoute =
+  OnboardingOnboardingGoalRouteImport.update({
+    id: '/onboarding/goal',
+    path: '/onboarding/goal',
+    getParentRoute: () => OnboardingRoute,
+  } as any)
+const OnboardingOnboardingProfileRoute =
+  OnboardingOnboardingProfileRouteImport.update({
+    id: '/onboarding/profile',
+    path: '/onboarding/profile',
+    getParentRoute: () => OnboardingRoute,
+  } as any)
+const OnboardingOnboardingReadingRoute =
+  OnboardingOnboardingReadingRouteImport.update({
+    id: '/onboarding/reading',
+    path: '/onboarding/reading',
+    getParentRoute: () => OnboardingRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/demo': typeof DemoRoute
-  '/onboarding': typeof OnboardingRoute
   '/accounts': typeof AppAccountsRoute
   '/audience': typeof AppAudienceRoute
   '/directions': typeof AppDirectionsRoute
@@ -87,11 +120,15 @@ export interface FileRoutesByFullPath {
   '/plans': typeof AppPlansRoute
   '/settings': typeof AppSettingsRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/onboarding/account': typeof OnboardingOnboardingAccountRoute
+  '/onboarding/connect': typeof OnboardingOnboardingConnectRoute
+  '/onboarding/goal': typeof OnboardingOnboardingGoalRoute
+  '/onboarding/profile': typeof OnboardingOnboardingProfileRoute
+  '/onboarding/reading': typeof OnboardingOnboardingReadingRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/demo': typeof DemoRoute
-  '/onboarding': typeof OnboardingRoute
   '/accounts': typeof AppAccountsRoute
   '/audience': typeof AppAudienceRoute
   '/directions': typeof AppDirectionsRoute
@@ -99,13 +136,18 @@ export interface FileRoutesByTo {
   '/plans': typeof AppPlansRoute
   '/settings': typeof AppSettingsRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/onboarding/account': typeof OnboardingOnboardingAccountRoute
+  '/onboarding/connect': typeof OnboardingOnboardingConnectRoute
+  '/onboarding/goal': typeof OnboardingOnboardingGoalRoute
+  '/onboarding/profile': typeof OnboardingOnboardingProfileRoute
+  '/onboarding/reading': typeof OnboardingOnboardingReadingRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
+  '/_onboarding': typeof OnboardingRouteWithChildren
   '/demo': typeof DemoRoute
-  '/onboarding': typeof OnboardingRoute
   '/_app/accounts': typeof AppAccountsRoute
   '/_app/audience': typeof AppAudienceRoute
   '/_app/directions': typeof AppDirectionsRoute
@@ -113,13 +155,17 @@ export interface FileRoutesById {
   '/_app/plans': typeof AppPlansRoute
   '/_app/settings': typeof AppSettingsRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/_onboarding/onboarding/account': typeof OnboardingOnboardingAccountRoute
+  '/_onboarding/onboarding/connect': typeof OnboardingOnboardingConnectRoute
+  '/_onboarding/onboarding/goal': typeof OnboardingOnboardingGoalRoute
+  '/_onboarding/onboarding/profile': typeof OnboardingOnboardingProfileRoute
+  '/_onboarding/onboarding/reading': typeof OnboardingOnboardingReadingRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/demo'
-    | '/onboarding'
     | '/accounts'
     | '/audience'
     | '/directions'
@@ -127,11 +173,15 @@ export interface FileRouteTypes {
     | '/plans'
     | '/settings'
     | '/auth/callback'
+    | '/onboarding/account'
+    | '/onboarding/connect'
+    | '/onboarding/goal'
+    | '/onboarding/profile'
+    | '/onboarding/reading'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/demo'
-    | '/onboarding'
     | '/accounts'
     | '/audience'
     | '/directions'
@@ -139,12 +189,17 @@ export interface FileRouteTypes {
     | '/plans'
     | '/settings'
     | '/auth/callback'
+    | '/onboarding/account'
+    | '/onboarding/connect'
+    | '/onboarding/goal'
+    | '/onboarding/profile'
+    | '/onboarding/reading'
   id:
     | '__root__'
     | '/'
     | '/_app'
+    | '/_onboarding'
     | '/demo'
-    | '/onboarding'
     | '/_app/accounts'
     | '/_app/audience'
     | '/_app/directions'
@@ -152,13 +207,18 @@ export interface FileRouteTypes {
     | '/_app/plans'
     | '/_app/settings'
     | '/auth/callback'
+    | '/_onboarding/onboarding/account'
+    | '/_onboarding/onboarding/connect'
+    | '/_onboarding/onboarding/goal'
+    | '/_onboarding/onboarding/profile'
+    | '/_onboarding/onboarding/reading'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
+  OnboardingRoute: typeof OnboardingRouteWithChildren
   DemoRoute: typeof DemoRoute
-  OnboardingRoute: typeof OnboardingRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
 }
 
@@ -178,18 +238,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_onboarding': {
+      id: '/_onboarding'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof OnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/demo': {
       id: '/demo'
       path: '/demo'
       fullPath: '/demo'
       preLoaderRoute: typeof DemoRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/onboarding': {
-      id: '/onboarding'
-      path: '/onboarding'
-      fullPath: '/onboarding'
-      preLoaderRoute: typeof OnboardingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app/accounts': {
@@ -241,6 +301,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_onboarding/onboarding/account': {
+      id: '/_onboarding/onboarding/account'
+      path: '/onboarding/account'
+      fullPath: '/onboarding/account'
+      preLoaderRoute: typeof OnboardingOnboardingAccountRouteImport
+      parentRoute: typeof OnboardingRoute
+    }
+    '/_onboarding/onboarding/connect': {
+      id: '/_onboarding/onboarding/connect'
+      path: '/onboarding/connect'
+      fullPath: '/onboarding/connect'
+      preLoaderRoute: typeof OnboardingOnboardingConnectRouteImport
+      parentRoute: typeof OnboardingRoute
+    }
+    '/_onboarding/onboarding/goal': {
+      id: '/_onboarding/onboarding/goal'
+      path: '/onboarding/goal'
+      fullPath: '/onboarding/goal'
+      preLoaderRoute: typeof OnboardingOnboardingGoalRouteImport
+      parentRoute: typeof OnboardingRoute
+    }
+    '/_onboarding/onboarding/profile': {
+      id: '/_onboarding/onboarding/profile'
+      path: '/onboarding/profile'
+      fullPath: '/onboarding/profile'
+      preLoaderRoute: typeof OnboardingOnboardingProfileRouteImport
+      parentRoute: typeof OnboardingRoute
+    }
+    '/_onboarding/onboarding/reading': {
+      id: '/_onboarding/onboarding/reading'
+      path: '/onboarding/reading'
+      fullPath: '/onboarding/reading'
+      preLoaderRoute: typeof OnboardingOnboardingReadingRouteImport
+      parentRoute: typeof OnboardingRoute
+    }
   }
 }
 
@@ -264,11 +359,31 @@ const AppRouteChildren: AppRouteChildren = {
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
+interface OnboardingRouteChildren {
+  OnboardingOnboardingAccountRoute: typeof OnboardingOnboardingAccountRoute
+  OnboardingOnboardingConnectRoute: typeof OnboardingOnboardingConnectRoute
+  OnboardingOnboardingGoalRoute: typeof OnboardingOnboardingGoalRoute
+  OnboardingOnboardingProfileRoute: typeof OnboardingOnboardingProfileRoute
+  OnboardingOnboardingReadingRoute: typeof OnboardingOnboardingReadingRoute
+}
+
+const OnboardingRouteChildren: OnboardingRouteChildren = {
+  OnboardingOnboardingAccountRoute: OnboardingOnboardingAccountRoute,
+  OnboardingOnboardingConnectRoute: OnboardingOnboardingConnectRoute,
+  OnboardingOnboardingGoalRoute: OnboardingOnboardingGoalRoute,
+  OnboardingOnboardingProfileRoute: OnboardingOnboardingProfileRoute,
+  OnboardingOnboardingReadingRoute: OnboardingOnboardingReadingRoute,
+}
+
+const OnboardingRouteWithChildren = OnboardingRoute._addFileChildren(
+  OnboardingRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
+  OnboardingRoute: OnboardingRouteWithChildren,
   DemoRoute: DemoRoute,
-  OnboardingRoute: OnboardingRoute,
   AuthCallbackRoute: AuthCallbackRoute,
 }
 export const routeTree = rootRouteImport
