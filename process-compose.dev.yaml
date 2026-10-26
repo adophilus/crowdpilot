@@ -1,9 +1,9 @@
 version: 0.5
 
 # CrowdPilot dev stack — run inside tmux:
-#   process-compose up --config process-compose.dev.yaml --port 4234
+#   process-compose up --config process-compose.dev.yaml --port 3013
 # CLI against the running instance:
-#   process-compose -p 4234 process list -o json | process logs | is-ready
+#   process-compose -p 3013 process list -o json | process logs | is-ready
 
 processes:
   backend:
@@ -12,7 +12,7 @@ processes:
       restart: on_failure
     readiness_probe:
       exec:
-        command: curl --fail http://localhost:1050/health
+        command: curl --fail http://localhost:3010/health
       initial_delay_seconds: 5
       period_seconds: 5
       timeout_seconds: 5
@@ -28,7 +28,7 @@ processes:
         condition: process_healthy
     readiness_probe:
       exec:
-        command: curl --fail http://localhost:3000/
+        command: curl --fail http://localhost:3011/
       initial_delay_seconds: 10
       period_seconds: 5
       timeout_seconds: 30
@@ -41,7 +41,7 @@ processes:
       restart: on_failure
     readiness_probe:
       exec:
-        command: curl --fail http://localhost:3001/
+        command: curl --fail http://localhost:3012/
       initial_delay_seconds: 10
       period_seconds: 5
       timeout_seconds: 30

@@ -8,3 +8,5 @@ allowBuilds:
   esbuild: true
   msgpackr-extract: true
   nx: false
+minimumReleaseAgeExclude:
+  - '@jsr/adophilus__dom-review@1.1.3'

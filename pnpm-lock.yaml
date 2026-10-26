@@ -57,6 +57,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@adophilus/dom-review':
+        specifier: jsr:1.1.3
+        version: '@jsr/adophilus__dom-review@1.1.3'
       '@crowdpilot/api-client':
         specifier: workspace:^
         version: link:../../packages/api-client
@@ -103,6 +106,9 @@ importers:
 
   apps/website:
     dependencies:
+      '@adophilus/dom-review':
+        specifier: jsr:1.1.3
+        version: '@jsr/adophilus__dom-review@1.1.3'
       '@fontsource-variable/bricolage-grotesque':
         specifier: ^5.3.0
         version: 5.3.0
@@ -584,6 +590,9 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
+
+  '@jsr/adophilus__dom-review@1.1.3':
+    resolution: {integrity: sha512-9g3AhQ+btNV1kqS6XTM03XbvGxMwaYKXsM842phgdRmEtCcYst7snMFhZbDHxCcgifeFtLXZkWrTwfE548BtCA==, tarball: https://npm.jsr.io/~/11/@jsr/adophilus__dom-review/1.1.3.tgz}
 
   '@msgpackr-extract/msgpackr-extract-darwin-arm64@3.0.4':
     resolution: {integrity: sha512-LCkGo6JDfaBhgST7UpPWgNgLINpcpabaHfyz5OBx75nUYxBsaEPxjnyNjWpeb/xBup/682QnBfRBy2/LvPutZQ==}
@@ -2400,6 +2409,8 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.6.0
+
+  '@jsr/adophilus__dom-review@1.1.3': {}
 
   '@msgpackr-extract/msgpackr-extract-darwin-arm64@3.0.4':
     optional: true

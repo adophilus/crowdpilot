@@ -1,4 +1,6 @@
 import { HttpApiGroup } from '@effect/platform'
+import GoogleCallbackEndpoint from './GoogleCallbackEndpoint'
+import GoogleStartEndpoint from './GoogleStartEndpoint'
 import LogoutEndpoint from './LogoutEndpoint'
 import MeEndpoint from './MeEndpoint'
 import RequestCodeEndpoint from './RequestCodeEndpoint'
@@ -9,5 +11,7 @@ const AuthApi = HttpApiGroup.make('Auth')
   .add(VerifyEndpoint)
   .add(MeEndpoint)
   .add(LogoutEndpoint)
+  .add(GoogleStartEndpoint)
+  .add(GoogleCallbackEndpoint)
 
 export default AuthApi

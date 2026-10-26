@@ -15,12 +15,12 @@ is the operational always-loaded layer.
 ```bash
 # Dev stack — HEADLESS daemon, never TUI mode (tmux session `qah`):
 tmux new-window -d -t qah: -n stack \
-  'direnv exec . process-compose up -t=false --config process-compose.dev.yaml --port 4234'
+  'direnv exec . process-compose up -t=false --config process-compose.dev.yaml --port 3013'
 # optional live view for humans — attach is only a client, F10 there is safe
-tmux new-window -d -t qah: -n stack-status 'process-compose attach -p 4234'
+tmux new-window -d -t qah: -n stack-status 'process-compose attach -p 3013'
 
 # Drive it through the REST client (never parse or key into the TUI):
-pc() { process-compose -p 4234 "$@"; }
+pc() { process-compose -p 3013 "$@"; }
 pc project is-ready            # health gate before browser testing
 pc process list -o json        # parse-safe status
 pc process logs -n 50 backend  # last N lines; NEVER `logs -f` in an agent shell
@@ -42,10 +42,10 @@ pnpm --filter backend spike:publish -- --yes     # add --mock for fixtures
 
 | Thing | Port / value |
 |---|---|
-| Backend API | `:1050` (`GET /health` = readiness) |
-| Web (TanStack Start dev) | `:3000` |
-| Website (TanStack Start dev) | `:3001` |
-| process-compose CLI | `:4234` (`PC_PORT` in env files) |
+| Backend API | `:3010` (`GET /health` = readiness) |
+| Web (TanStack Start dev) | `:3011` |
+| Website (TanStack Start dev) | `:3012` |
+| process-compose CLI | `:3013` (`PC_PORT` in env files) |
 | Postgres (dev) | docker or podman container `crowdpilot-dev-pg`, `127.0.0.1:5432` |
 | Qloo base URL | `https://hackathon.api.qloo.com` (hackathon keys ONLY work here) |
 | Onscript | `https://api.onscript.xyz` |
@@ -81,7 +81,25 @@ api-client.
 - **Evidence rule**: every Qloo/Onscript call appends request+response to the
   EvidenceStore — chat citations and the with/without-Qloo panel consume it.
 
-## 4. Gotchas (all hit for real — do not re-learn them)
+## 4. Design review loop (dom-review)
+
+`@adophilus/dom-review` (Vite plugin, dev-only, never in builds) is injected in
+web (:3011) and website (:3012). The human annotates elements in Chrome; reviews
+persist in localStorage until resolved. When asked to check/fix reviews:
+
+1. **Read** — via chrome-devtools MCP `evaluate_script`:
+   `() => JSON.parse(document.getElementById('dom-review-data')?.textContent || '{"reviews":[]}')`
+2. Each review has `id`, `selector`, `comment`, `priority` (fix high → low),
+   `category`, `resolved`, `replies`, and `context.framework` (component name +
+   file path — use it to locate the source file).
+3. **Fix** in source, then **reply + resolve** via `window.__domReviewAPI`:
+   `addReply({reviewId, comment, author: 'agent'})` then `resolveReview(id)`.
+   All methods are synchronous and return `{success, data?, error?}`.
+4. **Report** what was fixed and what remains.
+
+Full API reference: the `dom-review` skill (~/.agents/skills/dom-review/SKILL.md).
+
+## 5. Gotchas (all hit for real — do not re-learn them)
 
 1. **HttpApi path params use COLON syntax** in @effect/platform 0.82:
    `'/x/:id'`, not `'/x/{id}'`. Curly braces register as a literal segment and
@@ -113,7 +131,7 @@ api-client.
 9. **Plan limits return 402** from Onscript — the demo account must have
    posting headroom.
 
-## 5. Submission Constraints (hackathon rules)
+## 6. Submission Constraints (hackathon rules)
 
 - Public repo, MIT license in About — keep it that way.
 - Hosted live demo (Vercel web + VPS backend via the nix/infra pipeline in

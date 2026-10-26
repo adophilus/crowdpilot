@@ -11,7 +11,7 @@ const Api = HttpApi.make('CrowdPilot API')
   .annotate(OpenApi.Version, '0.1.0')
   .annotate(OpenApi.Servers, [
     {
-      url: 'http://localhost:1050',
+      url: 'http://localhost:3010',
       description: 'local'
     },
     {
