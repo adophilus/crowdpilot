@@ -2,6 +2,7 @@ packages:
   - ./packages/*
   - ./apps/backend
   - ./apps/web
+  - ./apps/website
 allowBuilds:
   '@parcel/watcher': true
   esbuild: true

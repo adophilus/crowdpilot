@@ -1,10 +1,40 @@
-import { useState } from 'react'
 import { bearer, queryClient } from '../lib/api'
+import { Icon } from './ui'
 
-// Inline [ev_NNNN] citation badge → popover with the stored Qloo call.
-// GET /qloo/evidence is session-gated, so the fetch carries the bearer.
-export function EvidenceBadge({ refId }: { refId: string }) {
-  const [open, setOpen] = useState(false)
+// Inline [ev_NNNN] citation chip. The panel it opens lives inside the bubble
+// (EvidencePanel) so it never overflows the narrow chat column.
+export function EvidenceBadge({
+  refId,
+  open,
+  onToggle
+}: {
+  refId: string
+  open: boolean
+  onToggle: () => void
+}) {
+  return (
+    <button
+      type="button"
+      className="ev-chip"
+      aria-label={`Show Qloo evidence ${refId}`}
+      aria-expanded={open}
+      data-open={open || undefined}
+      onClick={onToggle}
+    >
+      <span className="ev-dot" aria-hidden="true" />
+      {refId}
+    </button>
+  )
+}
+
+// GET /qloo/evidence/:refId is session-gated, so the fetch carries the bearer.
+export function EvidencePanel({
+  refId,
+  onClose
+}: {
+  refId: string
+  onClose: () => void
+}) {
   const { headers } = bearer()
   const evidence = queryClient.useQuery(
     'get',
@@ -12,65 +42,50 @@ export function EvidenceBadge({ refId }: { refId: string }) {
     // openapi-typescript declares no header params for this route; openapi-fetch
     // still merges params.header into the request at runtime.
     { params: { path: { refId }, header: headers as never } },
-    { enabled: open, staleTime: Number.POSITIVE_INFINITY, retry: 1 }
+    { staleTime: Number.POSITIVE_INFINITY, retry: 1 }
   )
-
   const data = evidence.data
 
   return (
-    <span className="ev-badge-wrap">
-      <button
-        type="button"
-        className="ev-badge"
-        aria-label={`Show Qloo evidence ${refId}`}
-        aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
-      >
-        ⛨ {refId}
-      </button>
-      {open && (
+    <section className="ev-panel" aria-label={`Qloo evidence ${refId}`}>
+      <header className="ev-panel-head">
+        <span>
+          <span className="ev-panel-title">Qloo call</span>
+          <span className="ev-panel-ref">{refId}</span>
+        </span>
+        <button
+          type="button"
+          className="icon-btn icon-btn-sm"
+          aria-label="Close evidence"
+          onClick={onClose}
+        >
+          <Icon name="close" size={14} stroke={2.2} />
+        </button>
+      </header>
+      {!data && evidence.isPending && (
+        <p className="ev-panel-note">Fetching the stored Qloo call…</p>
+      )}
+      {evidence.isError && (
+        <p className="ev-panel-note is-error">
+          Couldn't load this evidence entry.
+        </p>
+      )}
+      {data && (
         <>
-          <button
-            type="button"
-            className="pop-backdrop"
-            aria-label="Close evidence"
-            onClick={() => setOpen(false)}
-          />
-          <div className="ev-pop" role="dialog" aria-label={`Evidence ${refId}`}>
-            <div className="ev-pop-head">
-              <span className="ev-pop-title">Qloo evidence · {refId}</span>
-              <span className="ev-pop-time">{data?.timestamp ?? ''}</span>
-            </div>
-            {!data && evidence.isPending && (
-              <p style={{ margin: 0, fontSize: 13.5, color: 'var(--ink-faint)' }}>
-                Fetching the stored Qloo call…
-              </p>
-            )}
-            {evidence.isError && (
-              <p className="form-error" style={{ margin: 0 }}>
-                Couldn't load this evidence entry.
-              </p>
-            )}
-            {data && (
-              <>
-                <section>
-                  <h4>Request</h4>
-                  <pre>{truncate(data.request)}</pre>
-                </section>
-                <section>
-                  <h4>Response</h4>
-                  <pre>{truncate(data.response)}</pre>
-                </section>
-              </>
-            )}
-          </div>
+          {data.timestamp && (
+            <p className="ev-panel-note">{String(data.timestamp)}</p>
+          )}
+          <h4>Request</h4>
+          <pre>{truncate(data.request, 600)}</pre>
+          <h4>Response</h4>
+          <pre>{truncate(data.response, 1400)}</pre>
         </>
       )}
-    </span>
+    </section>
   )
 }
 
-const truncate = (value: unknown): string => {
+const truncate = (value: unknown, max: number): string => {
   const json = JSON.stringify(value, null, 2) ?? ''
-  return json.length > 1800 ? `${json.slice(0, 1800)}\n…` : json
+  return json.length > max ? `${json.slice(0, max)}\n…` : json
 }

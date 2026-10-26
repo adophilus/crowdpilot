@@ -2,7 +2,6 @@
   "$schema": "https://json.schemastore.org/package.json",
   "name": "crowdpilot",
   "private": true,
-  "packageManager": "pnpm@11.18.0",
   "scripts": {
     "build": "nx run-many -t build --nxBail",
     "lint": "nx run-many -t lint --nxBail",

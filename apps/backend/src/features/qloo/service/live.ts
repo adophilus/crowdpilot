@@ -81,55 +81,66 @@ export const QlooServiceLive = Layer.effect(
       (json as { results?: Array<Record<string, unknown>> } | undefined)
         ?.results ?? []
 
-    // Internal variant: Qloo's filter.type=urn:tag returns audience tags.
-    type InsightsArgs = Omit<QlooInsightsArgs, 'filterType'> & {
-      filterType: QlooEntityType | 'tag' | 'urn:tag'
-    }
-
-    const insightsCall = (args: InsightsArgs) =>
+    const insightsRequest = (
+      filterType: string,
+      args: Omit<QlooInsightsArgs, 'filterType'>
+    ) =>
       call('/v2/insights', {
-        // short domain names normalize to urn here; urn:tag passes through
-        'filter.type':
-          args.filterType === 'urn:tag'
-            ? 'urn:tag'
-            : `urn:entity:${args.filterType}`,
+        'filter.type': filterType,
         'signal.interests.entities': args.signalEntityIds?.join(','),
         'signal.interests.tags': args.signalTagIds?.join(','),
         'location.query': args.locationNear,
         tags: args.tags?.join(',')
-      }).pipe(
+      })
+
+    const scoreOf = (record: Record<string, unknown>, index: number) =>
+      typeof record.score === 'number'
+        ? record.score
+        : typeof record.popularity === 'number'
+          ? record.popularity
+          : typeof (record.properties as { affinity?: unknown } | undefined)
+                ?.affinity === 'number'
+            ? (record.properties as { affinity: number }).affinity
+            : Math.round((1 - index * 0.05) * 100) / 100
+
+    // Empty results are normal, not an error. Entity calls return
+    // results.entities[].
+    const insightsCall = (args: QlooInsightsArgs) =>
+      insightsRequest(`urn:entity:${args.filterType}`, args).pipe(
         Effect.map((jsonAndRef): QlooInsightsResult => {
-          // Empty results are normal, not an error. urn:tag calls return
-          // results.tags[] (taste analysis); entity calls return
-          // results.entities[].
-          const json = jsonAndRef.json
-          const wireRecords: Array<Record<string, unknown>> =
-            args.filterType === 'urn:tag'
-              ? ((json as { results?: { tags?: Array<Record<string, unknown>> } })
-                  ?.results?.tags ?? [])
-              : ((json as { results?: { entities?: Array<Record<string, unknown>> } })
-                  ?.results?.entities ?? [])
+          const wireRecords =
+            (jsonAndRef.json as {
+              results?: { entities?: Array<Record<string, unknown>> }
+            })?.results?.entities ?? []
           const entities = wireRecords.map((entity, index) => ({
-            id: String(entity.id ?? entity.entity_id ?? entity.tag_id ?? ''),
+            id: String(entity.id ?? entity.entity_id ?? ''),
             name: String(entity.name ?? ''),
-            type: shortType(
-              entity.type,
-              args.filterType === 'urn:tag' ? 'tag' : args.filterType
-            ),
-            score:
-              typeof entity.score === 'number'
-                ? entity.score
-                : typeof entity.popularity === 'number'
-                  ? entity.popularity
-                  : typeof (entity.properties as { affinity?: unknown } | undefined)
-                        ?.affinity === 'number'
-                    ? (entity.properties as { affinity: number }).affinity
-                    : Math.round((1 - index * 0.05) * 100) / 100,
+            type: shortType(entity.type, args.filterType),
+            score: scoreOf(entity, index),
             tags: Array.isArray(entity.tags)
               ? (entity.tags as unknown[]).map(String)
               : undefined
           }))
           return { entities, evidenceRefs: [jsonAndRef.refId] }
+        }),
+        Effect.withSpan('qloo.insights')
+      )
+
+    // filter.type=urn:tag (taste analysis) returns audience tags for the
+    // signals under results.tags[] — tags, not entities, so no entity type.
+    const tagInsightsCall = (args: Omit<QlooInsightsArgs, 'filterType'>) =>
+      insightsRequest('urn:tag', args).pipe(
+        Effect.map((jsonAndRef) => {
+          const wireRecords =
+            (jsonAndRef.json as {
+              results?: { tags?: Array<Record<string, unknown>> }
+            })?.results?.tags ?? []
+          const tags = wireRecords.map((tag, index) => ({
+            id: String(tag.id ?? tag.tag_id ?? ''),
+            name: String(tag.name ?? ''),
+            score: scoreOf(tag, index)
+          }))
+          return { tags, evidenceRefs: [jsonAndRef.refId] }
         }),
         Effect.withSpan('qloo.insights')
       )
@@ -170,15 +181,13 @@ export const QlooServiceLive = Layer.effect(
 
       buildProfile: (entityIds, tagIds) =>
         Effect.gen(function* () {
-          // filter.type=urn:tag returns audience tags for the signal entities.
-          const tagResult = yield* insightsCall({
-            filterType: 'urn:tag',
+          const tagResult = yield* tagInsightsCall({
             signalEntityIds: entityIds,
             signalTagIds: tagIds
           })
-          const topTags = tagResult.entities.slice(0, 8).map((entity) => ({
-            tag: entity.name || entity.id,
-            score: entity.score ?? 0
+          const topTags = tagResult.tags.slice(0, 8).map((tag) => ({
+            tag: tag.name || tag.id,
+            score: tag.score
           }))
 
           const domains: QlooEntityType[] = [

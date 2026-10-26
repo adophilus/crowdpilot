@@ -36,6 +36,7 @@ pnpm --filter backend spike:publish -- --yes     # add --mock for fixtures
 |---|---|
 | Backend API | `:1050` (`GET /health` = readiness) |
 | Web (TanStack Start dev) | `:3000` |
+| Website (TanStack Start dev) | `:3001` |
 | process-compose CLI | `:4234` (`PC_PORT` in env files) |
 | Postgres (dev) | docker container `crowdpilot-dev-pg`, `127.0.0.1:5432` |
 | Qloo base URL | `https://hackathon.api.qloo.com` (hackathon keys ONLY work here) |

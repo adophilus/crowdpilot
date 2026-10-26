@@ -19,20 +19,20 @@ export interface SessionUser {
 
 const TOKEN_KEY = 'crowdpilot_token'
 const USER_KEY = 'crowdpilot_user'
+const DEMO_KEY = 'crowdpilot_demo_token'
 
 // Signed-in token wins. The one-click demo persona mints its own session from
-// the public POST /demo/session (rate limited 10/IP/hour — cached for the
-// tab's lifetime after first mint).
-let cachedDemoToken: string | null = null
-
+// the public POST /demo/session (rate limited 10/IP/hour — persisted after the
+// first mint so a reload keeps the demo workspace open).
 export const ensureDemoSession = async (): Promise<string | null> => {
-  if (cachedDemoToken) return cachedDemoToken
+  const cached = safeGet(DEMO_KEY)
+  if (cached) return cached
   try {
     const res = await fetch(`${API_URL}/demo/session`, { method: 'POST' })
     if (!res.ok) return null
     const data = (await res.json()) as { token: string }
-    cachedDemoToken = data.token
-    return cachedDemoToken
+    safeSet(DEMO_KEY, data.token)
+    return data.token
   } catch {
     return null
   }
@@ -41,10 +41,14 @@ export const ensureDemoSession = async (): Promise<string | null> => {
 // A 401 on a demo call means the minted session died — drop the cache so the
 // next demo click mints a fresh one.
 export const resetDemoSession = (): void => {
-  cachedDemoToken = null
+  safeRemove(DEMO_KEY)
 }
 
-export const getToken = (): string | null => safeGet(TOKEN_KEY) ?? cachedDemoToken
+export const getToken = (): string | null =>
+  safeGet(TOKEN_KEY) ?? safeGet(DEMO_KEY)
+
+export const isDemoSession = (): boolean =>
+  !safeGet(TOKEN_KEY) && Boolean(safeGet(DEMO_KEY))
 
 export const getSignedInUser = (): SessionUser | null => {
   const raw = safeGet(USER_KEY)
@@ -57,6 +61,7 @@ export const getSignedInUser = (): SessionUser | null => {
 }
 
 export const storeSession = (token: string, user: SessionUser): void => {
+  safeRemove(DEMO_KEY)
   safeSet(TOKEN_KEY, token)
   safeSet(USER_KEY, JSON.stringify(user))
 }
@@ -64,6 +69,7 @@ export const storeSession = (token: string, user: SessionUser): void => {
 export const clearSession = (): void => {
   safeRemove(TOKEN_KEY)
   safeRemove(USER_KEY)
+  safeRemove(DEMO_KEY)
 }
 
 export const bearer = (): { headers: Record<string, string> } => {

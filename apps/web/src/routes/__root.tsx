@@ -1,32 +1,34 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import {
   createRootRoute,
   HeadContent,
   Outlet,
   Scripts
 } from '@tanstack/react-router'
-import '@fontsource-variable/fraunces/opsz.css'
-import '@fontsource-variable/fraunces/opsz-italic.css'
-import '@fontsource-variable/instrument-sans/index.css'
+import '@fontsource-variable/bricolage-grotesque/opsz.css'
+import '@fontsource-variable/geist/index.css'
+import '@fontsource-variable/geist-mono/index.css'
 import '../styles.css'
 
 const FAVICON =
-  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23201812'/%3E%3Ctext x='16' y='23' font-size='19' text-anchor='middle' fill='%23d96b3f'%3E%E2%9C%B3%3C/text%3E%3C/svg%3E"
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Ccircle cx='24' cy='24' r='17' fill='none' stroke='%23141414' stroke-width='3.5'/%3E%3Cpath d='M33.5 14.5L27 27L21 21Z' fill='%23E5532A'/%3E%3Cpath d='M14.5 33.5L21 21L27 27Z' fill='%23141414'/%3E%3C/svg%3E"
+
+const queryClient = new QueryClient()
 
 export const Route = createRootRoute({
   head: () => ({
     meta: [
       { charSet: 'utf-8' },
       { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-      { title: 'CrowdPilot — know your crowd, ship the post' },
+      { title: 'CrowdPilot' },
       {
         name: 'description',
         content:
-          'A cultural co-pilot for independent cafés, bars and boutiques. Grounded in Qloo, published in one click.'
+          'Your audience, read by Qloo. CrowdPilot finds what your crowd loves and turns it into plans and posts.'
       },
-      { name: 'theme-color', content: '#201812' },
-      { rel: 'icon', href: FAVICON }
+      { name: 'theme-color', content: '#FAFAF8' }
     ],
-    links: [],
+    links: [{ rel: 'icon', href: FAVICON }],
     scripts: []
   }),
   component: RootComponent
@@ -39,7 +41,9 @@ function RootComponent() {
         <HeadContent />
       </head>
       <body>
-        <Outlet />
+        <QueryClientProvider client={queryClient}>
+          <Outlet />
+        </QueryClientProvider>
         <Scripts />
       </body>
     </html>

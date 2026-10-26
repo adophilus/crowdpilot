@@ -25,6 +25,14 @@
       "lineWidth": 80
     }
   },
+  "css": {
+    "formatter": {
+      "indentStyle": "space",
+      "indentWidth": 2,
+      "quoteStyle": "single",
+      "lineWidth": 80
+    }
+  },
   "vcs": {
     "enabled": true,
     "clientKind": "git",

@@ -10,33 +10,143 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AppRouteImport } from './routes/_app'
+import { Route as DemoRouteImport } from './routes/demo'
+import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as AppAccountsRouteImport } from './routes/_app/accounts'
+import { Route as AppAudienceRouteImport } from './routes/_app/audience'
+import { Route as AppDirectionsRouteImport } from './routes/_app/directions'
+import { Route as AppHomeRouteImport } from './routes/_app/home'
+import { Route as AppPlansRouteImport } from './routes/_app/plans'
+import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppRoute = AppRouteImport.update({
+  id: '/_app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DemoRoute = DemoRouteImport.update({
+  id: '/demo',
+  path: '/demo',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OnboardingRoute = OnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppAccountsRoute = AppAccountsRouteImport.update({
+  id: '/accounts',
+  path: '/accounts',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAudienceRoute = AppAudienceRouteImport.update({
+  id: '/audience',
+  path: '/audience',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDirectionsRoute = AppDirectionsRouteImport.update({
+  id: '/directions',
+  path: '/directions',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppHomeRoute = AppHomeRouteImport.update({
+  id: '/home',
+  path: '/home',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPlansRoute = AppPlansRouteImport.update({
+  id: '/plans',
+  path: '/plans',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSettingsRoute = AppSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/demo': typeof DemoRoute
+  '/onboarding': typeof OnboardingRoute
+  '/accounts': typeof AppAccountsRoute
+  '/audience': typeof AppAudienceRoute
+  '/directions': typeof AppDirectionsRoute
+  '/home': typeof AppHomeRoute
+  '/plans': typeof AppPlansRoute
+  '/settings': typeof AppSettingsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/demo': typeof DemoRoute
+  '/onboarding': typeof OnboardingRoute
+  '/accounts': typeof AppAccountsRoute
+  '/audience': typeof AppAudienceRoute
+  '/directions': typeof AppDirectionsRoute
+  '/home': typeof AppHomeRoute
+  '/plans': typeof AppPlansRoute
+  '/settings': typeof AppSettingsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_app': typeof AppRouteWithChildren
+  '/demo': typeof DemoRoute
+  '/onboarding': typeof OnboardingRoute
+  '/_app/accounts': typeof AppAccountsRoute
+  '/_app/audience': typeof AppAudienceRoute
+  '/_app/directions': typeof AppDirectionsRoute
+  '/_app/home': typeof AppHomeRoute
+  '/_app/plans': typeof AppPlansRoute
+  '/_app/settings': typeof AppSettingsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/demo'
+    | '/onboarding'
+    | '/accounts'
+    | '/audience'
+    | '/directions'
+    | '/home'
+    | '/plans'
+    | '/settings'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/demo'
+    | '/onboarding'
+    | '/accounts'
+    | '/audience'
+    | '/directions'
+    | '/home'
+    | '/plans'
+    | '/settings'
+  id:
+    | '__root__'
+    | '/'
+    | '/_app'
+    | '/demo'
+    | '/onboarding'
+    | '/_app/accounts'
+    | '/_app/audience'
+    | '/_app/directions'
+    | '/_app/home'
+    | '/_app/plans'
+    | '/_app/settings'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AppRoute: typeof AppRouteWithChildren
+  DemoRoute: typeof DemoRoute
+  OnboardingRoute: typeof OnboardingRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +158,97 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_app': {
+      id: '/_app'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/demo': {
+      id: '/demo'
+      path: '/demo'
+      fullPath: '/demo'
+      preLoaderRoute: typeof DemoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/onboarding': {
+      id: '/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof OnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_app/accounts': {
+      id: '/_app/accounts'
+      path: '/accounts'
+      fullPath: '/accounts'
+      preLoaderRoute: typeof AppAccountsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/audience': {
+      id: '/_app/audience'
+      path: '/audience'
+      fullPath: '/audience'
+      preLoaderRoute: typeof AppAudienceRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/directions': {
+      id: '/_app/directions'
+      path: '/directions'
+      fullPath: '/directions'
+      preLoaderRoute: typeof AppDirectionsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/home': {
+      id: '/_app/home'
+      path: '/home'
+      fullPath: '/home'
+      preLoaderRoute: typeof AppHomeRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/plans': {
+      id: '/_app/plans'
+      path: '/plans'
+      fullPath: '/plans'
+      preLoaderRoute: typeof AppPlansRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/settings': {
+      id: '/_app/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AppSettingsRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
+interface AppRouteChildren {
+  AppAccountsRoute: typeof AppAccountsRoute
+  AppAudienceRoute: typeof AppAudienceRoute
+  AppDirectionsRoute: typeof AppDirectionsRoute
+  AppHomeRoute: typeof AppHomeRoute
+  AppPlansRoute: typeof AppPlansRoute
+  AppSettingsRoute: typeof AppSettingsRoute
+}
+
+const AppRouteChildren: AppRouteChildren = {
+  AppAccountsRoute: AppAccountsRoute,
+  AppAudienceRoute: AppAudienceRoute,
+  AppDirectionsRoute: AppDirectionsRoute,
+  AppHomeRoute: AppHomeRoute,
+  AppPlansRoute: AppPlansRoute,
+  AppSettingsRoute: AppSettingsRoute,
+}
+
+const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AppRoute: AppRouteWithChildren,
+  DemoRoute: DemoRoute,
+  OnboardingRoute: OnboardingRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

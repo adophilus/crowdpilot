@@ -1,5 +1,7 @@
-import { EvidenceBadge } from './EvidenceBadge'
+import { type ReactNode, useState } from 'react'
 import type { AgentEvent } from '../lib/sse'
+import { EvidenceBadge, EvidencePanel } from './EvidenceBadge'
+import { Icon } from './ui'
 
 export interface ToolCall {
   name: string
@@ -16,121 +18,127 @@ export interface Msg {
   error?: string
 }
 
-const TOOL_ICONS: Record<string, string> = {
-  qloo_search: '⌕',
-  qloo_build_profile: '✳',
-  qloo_affinities: '◈',
-  list_connected_accounts: '◎',
-  draft_post: '✎',
-  publish_post: '➤'
-}
-
 // Capture group keeps the citation tokens in split parts — that's how inline
-// citations survive into badge elements. The model cites singly [ev_0009] or
+// citations survive into chip elements. The model cites singly [ev_0009] or
 // in comma groups [ev_0009, ev_0011].
 const EV_RE = /(\[ev_[\d, ]+\])/g
 
 export function ChatMessage({
   msg,
+  variant,
   onPublish,
   busy
 }: {
   msg: Msg
+  variant?: 'plain'
   onPublish?: () => void
   busy?: boolean
 }) {
+  const [openRef, setOpenRef] = useState<string | null>(null)
+
   if (msg.role === 'user') {
-    return (
-      <div className="msg msg-user">
-        <div className="bubble">{msg.text}</div>
-      </div>
-    )
+    return <div className="bubble bubble-me msg">{msg.text}</div>
   }
 
+  const toggle = (id: string) => setOpenRef((cur) => (cur === id ? null : id))
+  const { nodes, uncited } = renderText(msg.text, msg.evidenceRefs, openRef, toggle)
   const hasDraft = msg.toolCalls.some((c) => c.name === 'draft_post')
+  const thinking = msg.streaming && !msg.text
 
   return (
-    <div className="msg msg-assistant">
+    <div className={`bubble bubble-pilot msg${variant === 'plain' ? ' is-plain' : ''}`}>
+      {variant === 'plain' && <span className="bubble-tag">Without Qloo</span>}
       {msg.toolCalls.length > 0 && (
-        <div className="chips">
+        <ul className="tool-trail" aria-label="What Pilot checked">
           {msg.toolCalls.map((call, i) => (
-            <span className="chip" key={`${call.name}-${i}`}>
-              <span className="chip-ico" aria-hidden>
-                {TOOL_ICONS[call.name] ?? '✓'}
-              </span>
-              <span className="chip-text">{call.summary}</span>
-            </span>
+            <li key={`${call.name}-${i}`}>
+              <Icon name="check" size={11} stroke={3} />
+              {call.summary}
+            </li>
+          ))}
+        </ul>
+      )}
+      {thinking ? (
+        <span className="thinking">Pilot is thinking…</span>
+      ) : (msg.text || msg.streaming) && (
+        <div className="bubble-text">
+          {nodes}
+          {msg.streaming && <span className="caret" aria-hidden="true" />}
+        </div>
+      )}
+      {msg.error && <p className="bubble-error">{msg.error}</p>}
+      {!msg.streaming && uncited.length > 0 && (
+        <div className="ev-row">
+          <span>Grounded in Qloo</span>
+          {uncited.map((r) => (
+            <EvidenceBadge
+              key={r}
+              refId={r}
+              open={openRef === r}
+              onToggle={() => toggle(r)}
+            />
           ))}
         </div>
       )}
-      <p className="assistant-text" style={{ margin: 0 }}>
-        <span className="assistant-mark" aria-hidden>
-          ✳
-        </span>
-        {renderText(msg.text, msg.evidenceRefs)}
-        {msg.streaming && <span className="stream-caret" aria-hidden />}
-      </p>
-      {msg.error && <div className="msg-error">{msg.error}</div>}
-      {!msg.streaming && msg.text && (
-        <div className="msg-actions">
-          <button
-            type="button"
-            className="msg-action"
-            onClick={() => navigator.clipboard?.writeText(msg.text)}
-          >
-            Copy
-          </button>
-          {hasDraft && onPublish && (
-            <button
-              type="button"
-              className="msg-action primary"
-              disabled={busy}
-              onClick={onPublish}
-            >
-              ➤ Publish to demo account
-            </button>
-          )}
-        </div>
+      {openRef && (
+        <EvidencePanel refId={openRef} onClose={() => setOpenRef(null)} />
+      )}
+      {!msg.streaming && hasDraft && onPublish && (
+        <button
+          type="button"
+          className="btn btn-accent btn-sm bubble-action"
+          disabled={busy}
+          onClick={onPublish}
+        >
+          Publish to the demo account
+          <Icon name="arrow" size={14} stroke={2.2} />
+        </button>
       )}
     </div>
   )
 }
 
-// Split assistant text into prose + inline evidence badges for the refs it
-// cites. Refs the model omitted from prose still get badges appended — every
-// answer must stay traceable to its Qloo calls. Prose gets a tiny markdown
-// pass (escape → bold → bullets); no dep, our own LLM output is the only source.
-function renderText(text: string, refs: readonly string[]): React.ReactNode[] {
+// Split assistant text into prose + inline evidence chips for the refs it
+// cites. Refs the model omitted from prose are returned so the bubble can
+// still list them — every answer stays traceable to its Qloo calls. Prose
+// gets a tiny markdown pass; our own LLM output is the only source.
+function renderText(
+  text: string,
+  refs: readonly string[],
+  openRef: string | null,
+  toggle: (id: string) => void
+): { nodes: ReactNode[]; uncited: string[] } {
   const parts = text.split(EV_RE)
   const cited = new Set<string>()
-  const nodes: React.ReactNode[] = parts.map((part, i) => {
+  const nodes: ReactNode[] = parts.map((part, i) => {
     const group = part.match(/^\[(ev_[\d, ]+)\]$/)
     if (group) {
-      const ids = group[1].split(',').map((s) => s.trim()).filter(Boolean)
-      ids.forEach((id) => {
-        cited.add(id)
-      })
+      const ids = group[1]
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)
+      for (const id of ids) cited.add(id)
       return (
-        <span key={`e${i}`}>
+        <span key={`e${i}`} className="ev-inline">
           {ids.map((id) => (
-            <EvidenceBadge key={id} refId={id} />
+            <EvidenceBadge
+              key={id}
+              refId={id}
+              open={openRef === id}
+              onToggle={() => toggle(id)}
+            />
           ))}
         </span>
       )
     }
-    return <span key={`t${i}`} dangerouslySetInnerHTML={{ __html: mdToHtml(part) }} />
-  })
-  const uncited = refs.filter((r) => !cited.has(r))
-  if (uncited.length > 0) {
-    nodes.push(
-      <span key="ev-extra" style={{ marginLeft: 6 }}>
-        {uncited.map((r) => (
-          <EvidenceBadge key={r} refId={r} />
-        ))}
-      </span>
+    return (
+      <span
+        key={`t${i}`}
+        dangerouslySetInnerHTML={{ __html: mdToHtml(part) }}
+      />
     )
-  }
-  return nodes
+  })
+  return { nodes, uncited: refs.filter((r) => !cited.has(r)) }
 }
 
 const esc = (s: string) =>
@@ -146,7 +154,10 @@ const mdToHtml = (s: string) =>
 export function applyEvent(msg: Msg, event: AgentEvent): Msg {
   switch (event.type) {
     case 'tool':
-      return { ...msg, toolCalls: [...msg.toolCalls, { name: event.name, summary: event.summary }] }
+      return {
+        ...msg,
+        toolCalls: [...msg.toolCalls, { name: event.name, summary: event.summary }]
+      }
     case 'evidence':
       return {
         ...msg,
