@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { useEffect, useRef, useState } from 'react'
-import { Icon, Wordmark } from '../components/ui'
-import { api, getSignedInUser, storeSession } from '../lib/api'
+import { GoogleMark, Icon, Wordmark } from '../components/ui'
+import { API_URL, api, getSignedInUser, storeSession } from '../lib/api'
 import {
   GOALS,
   type GoalId,
@@ -26,7 +26,6 @@ export const Route = createFileRoute('/onboarding')({
   component: Onboarding
 })
 
-const STEPS = ['Account', 'Goal', 'Connect', 'Profile']
 const SITE = 'https://crowdpilot.hackathons.adophilus.com'
 
 function Onboarding() {
@@ -179,7 +178,6 @@ function Onboarding() {
     go(getSignedInUser() ? 1 : 0)
   }
 
-  const idx = Math.min(step, 3)
   const tasks = [
     anyConnected
       ? 'Reading followers and engagement'
@@ -191,25 +189,20 @@ function Onboarding() {
   return (
     <div className="onb">
       <main className="onb-main">
-        <header className="onb-head">
-          <Wordmark size={28} />
-          <div className="onb-progress">
-            <span>Step {idx + 1} of 4</span>
-            <div aria-hidden="true" className="onb-dots">
-              {STEPS.map((s, i) => (
-                <span
-                  key={s}
-                  className="onb-dot"
-                  data-on={i === idx || undefined}
-                  data-past={i <= idx || undefined}
-                />
-              ))}
-            </div>
-          </div>
-        </header>
+        {step > 0 && (
+          <header className="onb-head">
+            <Wordmark size={28} />
+          </header>
+        )}
 
         <div className="onb-stage fade" data-out={fade || undefined}>
           <div className="onb-col">
+            {step === 0 && (
+              <div className="onb-mark">
+                <Wordmark size={28} />
+              </div>
+            )}
+
             {step === 0 && authStep === 'email' && (
               <>
                 <h1 className="onb-title onb-title-xl">Let's find your people.</h1>
@@ -219,14 +212,13 @@ function Onboarding() {
                 </p>
                 <button
                   type="button"
-                  className="btn btn-outline btn-block is-soon"
-                  aria-disabled="true"
-                  title="Google sign-in is coming soon"
-                  onClick={(e) => e.preventDefault()}
+                  className="btn btn-outline btn-block"
+                  onClick={() => {
+                    window.location.href = `${API_URL}/auth/google/start`
+                  }}
                 >
-                  <Icon name="google" size={18} />
+                  <GoogleMark size={18} />
                   Continue with Google
-                  <span className="soon-pill">Soon</span>
                 </button>
                 <div className="or-rule">
                   <span />
@@ -277,18 +269,6 @@ function Onboarding() {
                   </a>
                   .
                 </p>
-                <Link to="/demo" className="demo-row">
-                  <span className="demo-row-mark" aria-hidden="true">
-                    <Icon name="spark" size={18} />
-                  </span>
-                  <span className="demo-row-text">
-                    <span className="demo-row-title">Just looking? Try the demo</span>
-                    <span className="demo-row-sub">
-                      Kofi's Café in Lagos, fully set up. No sign-up.
-                    </span>
-                  </span>
-                  <Icon name="arrow" size={16} stroke={2.2} />
-                </Link>
               </>
             )}
 

@@ -32,6 +32,18 @@ export const EnvLive = Layer.effect(
       ),
       LLM_MODEL: yield* Config.option(Config.string('LLM_MODEL')).pipe(
         Config.map(Option.getOrUndefined)
+      ),
+      GOOGLE_OAUTH_CLIENT_ID: yield* Config.string('GOOGLE_OAUTH_CLIENT_ID'),
+      GOOGLE_OAUTH_CLIENT_SECRET: yield* Config.string(
+        'GOOGLE_OAUTH_CLIENT_SECRET'
+      ),
+      GOOGLE_OAUTH_REDIRECT_URI: yield* Config.string(
+        'GOOGLE_OAUTH_REDIRECT_URI'
+      ).pipe(
+        Config.withDefault('http://localhost:3010/auth/google/callback')
+      ),
+      AUTH_SUCCESS_REDIRECT: yield* Config.string('AUTH_SUCCESS_REDIRECT').pipe(
+        Config.withDefault('http://localhost:3011/auth/callback')
       )
     }
 

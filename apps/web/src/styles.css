@@ -492,22 +492,6 @@ textarea {
   border-radius: 8px;
 }
 
-.is-soon {
-  cursor: not-allowed;
-  color: var(--ink-4);
-}
-.is-soon svg {
-  opacity: 0.6;
-}
-.soon-pill {
-  font-size: 12px;
-  font-weight: 500;
-  padding: 3px 8px;
-  border-radius: 20px;
-  background: var(--surface-4);
-  color: var(--ink-4);
-}
-
 .state-ok {
   flex: 1;
   min-height: 42px;
@@ -960,32 +944,10 @@ form .field {
   gap: 16px;
   flex-wrap: wrap;
 }
-.onb-progress {
+.onb-mark {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 13px;
-  color: var(--ink-4);
-}
-.onb-dots {
-  display: flex;
-  gap: 6px;
-}
-.onb-dot {
-  display: block;
-  width: 6px;
-  height: 6px;
-  border-radius: 6px;
-  background: var(--line-3);
-  transition:
-    width 0.3s ease,
-    background 0.3s ease;
-}
-.onb-dot[data-past] {
-  background: var(--ink);
-}
-.onb-dot[data-on] {
-  width: 22px;
+  justify-content: center;
+  margin-bottom: 24px;
 }
 .onb-stage {
   flex: 1;
@@ -1044,62 +1006,7 @@ form .field {
   font-size: 13px;
   line-height: 1.5;
   color: var(--ink-4);
-}
-
-.demo-row {
-  margin-top: 30px;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 12px 16px 12px 12px;
-  border-radius: 16px;
-  border: 1px solid var(--line);
-  background: var(--surface);
-  color: var(--ink);
-  text-decoration: none;
-  transition:
-    border-color 0.2s ease,
-    box-shadow 0.25s ease,
-    transform 0.25s ease;
-}
-.demo-row:hover {
-  color: var(--ink);
-  border-color: var(--ink);
-  box-shadow: var(--shadow-pick);
-  transform: translateY(-1px);
-}
-.demo-row-mark {
-  flex-shrink: 0;
-  width: 40px;
-  height: 40px;
-  border-radius: 11px;
-  background: rgba(229, 83, 42, 0.1);
-  color: var(--accent);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.demo-row-text {
-  flex: 1;
-  min-width: 0;
-}
-.demo-row-title {
-  display: block;
-  font-size: 15px;
-  font-weight: 600;
-}
-.demo-row-sub {
-  display: block;
-  font-size: 13px;
-  color: var(--ink-4);
-  margin-top: 1px;
-}
-.demo-row > svg {
-  flex-shrink: 0;
-  transition: transform 0.2s ease;
-}
-.demo-row:hover > svg {
-  transform: translateX(3px);
+  text-align: center;
 }
 
 .onb-nav {
@@ -2896,9 +2803,6 @@ form .field {
   }
   .sidebar .nav {
     padding: 0 11px;
-  }
-  .onb-progress > span {
-    display: none;
   }
 }
 

@@ -39,6 +39,13 @@ export const LlmConfigSchema = Schema.Struct({
   model: Schema.UndefinedOr(Schema.String)
 })
 
+export const GoogleOAuthConfigSchema = Schema.Struct({
+  clientId: Schema.String,
+  clientSecret: Schema.String,
+  redirectUri: Schema.String,
+  successRedirect: Schema.String
+})
+
 export class AppConfigSchema extends Schema.Class<AppConfigSchema>(
   'AppConfigSchema'
 )({
@@ -48,5 +55,6 @@ export class AppConfigSchema extends Schema.Class<AppConfigSchema>(
   smtp: SmtpConfigSchema,
   qloo: QlooConfigSchema,
   onscript: OnscriptConfigSchema,
-  llm: LlmConfigSchema
+  llm: LlmConfigSchema,
+  googleOAuth: GoogleOAuthConfigSchema
 }) {}

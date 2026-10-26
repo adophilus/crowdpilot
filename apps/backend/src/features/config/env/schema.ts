@@ -15,5 +15,9 @@ export class EnvSchema extends Schema.Class<EnvSchema>('EnvSchema')({
   ONSCRIPT_SESSION_TOKEN: Schema.String,
   LLM_API_KEY: Schema.String,
   LLM_BASE_URL: Schema.UndefinedOr(Schema.String),
-  LLM_MODEL: Schema.UndefinedOr(Schema.String)
+  LLM_MODEL: Schema.UndefinedOr(Schema.String),
+  GOOGLE_OAUTH_CLIENT_ID: Schema.String,
+  GOOGLE_OAUTH_CLIENT_SECRET: Schema.String,
+  GOOGLE_OAUTH_REDIRECT_URI: Schema.String,
+  AUTH_SUCCESS_REDIRECT: Schema.String
 }) {}

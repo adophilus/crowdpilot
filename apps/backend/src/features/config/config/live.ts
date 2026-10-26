@@ -40,6 +40,12 @@ export const AppConfigLive = Layer.effect(
         apiKey: env.LLM_API_KEY,
         baseUrl: env.LLM_BASE_URL,
         model: env.LLM_MODEL
+      },
+      googleOAuth: {
+        clientId: env.GOOGLE_OAUTH_CLIENT_ID,
+        clientSecret: env.GOOGLE_OAUTH_CLIENT_SECRET,
+        redirectUri: env.GOOGLE_OAUTH_REDIRECT_URI,
+        successRedirect: env.AUTH_SUCCESS_REDIRECT
       }
     })
   })
