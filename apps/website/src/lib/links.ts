@@ -1,6 +1,6 @@
 // Contract with the webapp (apps/web). Override per deploy via VITE_APP_URL.
 export const APP_URL: string =
-  import.meta.env.VITE_APP_URL ?? 'http://localhost:3000'
+  import.meta.env.VITE_APP_URL ?? 'http://localhost:3011'
 
 export const GET_STARTED_URL = `${APP_URL}/onboarding`
 export const DEMO_URL = `${APP_URL}/demo`

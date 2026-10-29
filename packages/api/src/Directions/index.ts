@@ -6,7 +6,11 @@ import UnexpectedError from '../common/UnexpectedError'
 
 export class GeneratedDirection extends Schema.Struct({
   id: Schema.String,
-  goal: Schema.String,
+  goal: Schema.Union(
+    Schema.Literal('break'),
+    Schema.Literal('deep'),
+    Schema.Literal('niche')
+  ),
   kind: Schema.String,
   fill: Schema.Union(
     Schema.Literal(100),

@@ -88,10 +88,12 @@ function Plans() {
   const ws = useWorkspace()
   const { plan } = Route.useSearch()
 
-  // Fixture plans plus a drafting skeleton for every direction picked with
-  // Proceed that doesn't have a hand-written plan yet.
+  // Generated directions win when present; fixture plans remain the fallback.
+  // A drafting skeleton is added for every direction picked with Proceed that
+  // doesn't have a hand-written plan yet.
+  const directionSource = ws.directions.length ? ws.directions : DIRECTIONS
   const defs: PlanDef[] = [
-    ...DIRECTIONS.filter(
+    ...directionSource.filter(
       (d) => ws.picks[d.id] === 'taken' && !PLANS.some((p) => p.id === d.id)
     ).map(draftPlanFor),
     ...PLANS

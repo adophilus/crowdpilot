@@ -8,7 +8,8 @@ import {
   type GoalId,
   matchLabel
 } from '../../lib/fixtures'
-import { useWorkspace } from '../../lib/workspace'
+import { api, bearer } from '../../lib/api'
+import { updateWorkspace, useWorkspace } from '../../lib/workspace'
 
 export const Route = createFileRoute('/_app/directions')({
   component: Directions
@@ -18,7 +19,35 @@ function Directions() {
   const ws = useWorkspace()
   const [filter, setFilter] = useState<'all' | GoalId>('all')
   const [why, setWhy] = useState<Record<string, boolean>>({ brunch: true })
-  const cards = DIRECTIONS.filter((d) => filter === 'all' || d.goal === filter)
+  const [generating, setGenerating] = useState(false)
+  const [generateNote, setGenerateNote] = useState('')
+  const source = ws.directions.length ? ws.directions : DIRECTIONS
+  const cards = source.filter((d) => filter === 'all' || d.goal === filter)
+  const filterCount = (id: GoalId | 'all') =>
+    id === 'all'
+      ? source.length
+      : source.filter((d) => d.goal === id).length
+
+  const generate = async () => {
+    setGenerating(true)
+    setGenerateNote('')
+    try {
+      const { data, error } = await api.POST('/directions/generate', bearer())
+      if (error || !data) {
+        setGenerateNote(
+          error && 'message' in error && error.message
+            ? error.message
+            : "Couldn't generate directions. Try again."
+        )
+        return
+      }
+      updateWorkspace({ directions: [...data.directions] })
+    } catch {
+      setGenerateNote("Couldn't reach CrowdPilot. Try again.")
+    } finally {
+      setGenerating(false)
+    }
+  }
 
   return (
     <main className="main">
@@ -30,18 +59,35 @@ function Directions() {
             first.
           </p>
         </div>
-        <Link to="/home" className="btn btn-outline btn-pilot">
-          <PilotAvatar size={28} />
-          Ask Pilot for more
-        </Link>
+        <div className="row-between" style={{ gap: 10, alignItems: 'center' }}>
+          <button
+            type="button"
+            className="btn btn-outline"
+            disabled={generating}
+            onClick={() => void generate()}
+          >
+            {generating
+              ? 'Generating directions...'
+              : ws.directions.length
+                ? 'Regenerate with Qloo'
+                : 'Generate with Qloo'}
+          </button>
+          <Link to="/home" className="btn btn-outline btn-pilot">
+            <PilotAvatar size={28} />
+            Ask Pilot for more
+          </Link>
+        </div>
       </header>
+
+      {generateNote && (
+        <p className="quiet-note" role="status">
+          {generateNote}
+        </p>
+      )}
 
       <div role="tablist" aria-label="Filter by goal" className="filter-row">
         {DIRECTION_FILTERS.map(([id, label]) => {
-          const count =
-            id === 'all'
-              ? DIRECTIONS.length
-              : DIRECTIONS.filter((d) => d.goal === id).length
+          const count = filterCount(id)
           return (
             <button
               key={id}
