@@ -22,7 +22,6 @@ import {
   READING_TASKS,
 } from '../../../lib/fixtures'
 import {
-  resetOnboarding,
   updateOnboarding,
   useOnboarding
 } from '../../../lib/onboarding'
@@ -302,32 +301,74 @@ export function GoalStep() {
 export function ConnectStep() {
   const navigate = useNavigate()
   const ob = useOnboarding()
-  // Read-only peek at real accounts. No connect flow here — onboarding stays
-  // unassisted; real connecting lives on the Accounts page.
   const [apiConnected, setApiConnected] = useState<Record<string, boolean>>({})
+  const [connecting, setConnecting] = useState<string | null>(null)
+  const [connectError, setConnectError] = useState('')
+
+  const loadAccounts = async () => {
+    try {
+      const { data } = await api.GET('/onscript/accounts', bearer())
+      if (!data) return
+      const map = {
+        x: data.accounts.some((a) => a.platform === API_PLATFORM.x && a.isActive),
+        fb: data.accounts.some((a) => a.platform === API_PLATFORM.fb && a.isActive),
+        ig: data.accounts.some((a) => a.platform === API_PLATFORM.ig && a.isActive)
+      }
+      setApiConnected(map)
+      // Mirror into onboarding state so the reading/profile copy is honest.
+      updateOnboarding((s) => ({ connected: { ...s.connected, x: map.x, fb: map.fb } }))
+    } catch {
+      /* backend quiet? keep the niche path */
+    }
+  }
 
   useEffect(() => {
-    let cancelled = false
-    void (async () => {
-      try {
-        const { data } = await api.GET('/onscript/accounts', bearer())
-        if (cancelled || !data) return
-        const map = {
-          x: data.accounts.some((a) => a.platform === API_PLATFORM.x && a.isActive),
-          fb: data.accounts.some((a) => a.platform === API_PLATFORM.fb && a.isActive),
-          ig: data.accounts.some((a) => a.platform === API_PLATFORM.ig && a.isActive)
-        }
-        setApiConnected(map)
-        // Mirror into onboarding state so the reading/profile copy is honest.
-        updateOnboarding((s) => ({ connected: { ...s.connected, x: map.x, fb: map.fb } }))
-      } catch {
-        /* backend quiet? keep the niche path */
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
+    void loadAccounts()
   }, [])
+
+  // Real connect: Onscript-hosted X OAuth in a popup, then claim the new
+  // account into the current user's mapping (same flow as the Accounts page).
+  const connectX = async () => {
+    setConnecting('x')
+    setConnectError('')
+    try {
+      const { data, error } = await api.POST('/onscript/connect/url', {
+        ...bearer(),
+        body: { platform: API_PLATFORM.x }
+      })
+      if (error || !data) {
+        setConnectError(
+          error && 'message' in error && error.message
+            ? error.message
+            : "Couldn't start connecting X. Try again."
+        )
+        return
+      }
+      window.open(data.authUrl, 'crowdpilot-connect', 'width=520,height=720')
+      const deadline = Date.now() + 90_000
+      let ticks = 0
+      while (Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, 2000))
+        ticks += 1
+        if (ticks % 2 === 0) {
+          const { data: claim } = await api.POST('/onscript/connect/claim', {
+            ...bearer()
+          })
+          if (claim?.claimed) {
+            await loadAccounts()
+            return
+          }
+        }
+        await loadAccounts()
+        if (apiConnected.x) return
+      }
+      setConnectError('Still waiting on X. Finish the popup, then try Connect again.')
+    } catch {
+      setConnectError("Couldn't start connecting X. Try again.")
+    } finally {
+      setConnecting(null)
+    }
+  }
 
   const isBreak = ob.goal === 'break'
   const anyConnected = PLATFORMS.some((p) => Boolean(apiConnected[p.id]) || Boolean(ob.connected[p.id]))
@@ -388,6 +429,17 @@ export function ConnectStep() {
                         ? 'Connected'
                         : 'Off'}
                   </span>
+                  {p.id === 'x' && !on && (
+                    <button
+                      className="btn btn-connect"
+                      type="button"
+                      disabled={connecting === 'x'}
+                      aria-label="Connect X (Twitter)"
+                      onClick={() => void connectX()}
+                    >
+                      {connecting === 'x' ? 'Connecting…' : 'Connect'}
+                    </button>
+                  )}
                 </div>
               )
             })}
@@ -541,13 +593,6 @@ export function ProfileStep() {
     void navigate({ to: '/home' })
   }
 
-  const startOver = () => {
-    resetOnboarding()
-    void navigate({
-      to: '/onboarding/$step',
-      params: { step: getSignedInUser() ? '2' : '1' }
-    })
-  }
 
   return (
     <div className="onb-col">
@@ -598,9 +643,6 @@ export function ProfileStep() {
           <span className="btn-arrow-dot" aria-hidden="true">
             <Icon name="arrow" size={14} stroke={2.2} />
           </span>
-        </button>
-        <button type="button" className="btn-text btn-text-u" onClick={startOver}>
-          Start over
         </button>
       </div>
     </div>

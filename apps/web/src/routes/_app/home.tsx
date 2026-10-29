@@ -2,7 +2,7 @@ import { createFileRoute, Link } from '@tanstack/react-router'
 import { useCallback, useState } from 'react'
 import { DirectionActions } from '../../components/DirectionActions'
 import { PilotChat } from '../../components/PilotChat'
-import { MatchStar, PilotAvatar, Radar } from '../../components/ui'
+import { MatchStar, PilotAvatar, PlatformMark, Radar } from '../../components/ui'
 import {
   HOME_DIRECTIONS,
   LOVES,
@@ -123,7 +123,7 @@ function Home() {
                       title={a.name}
                       className="acct-glyph"
                     >
-                      <span />
+                      <PlatformMark platform={a.id} size={16} />
                       <i />
                     </span>
                   ))}
