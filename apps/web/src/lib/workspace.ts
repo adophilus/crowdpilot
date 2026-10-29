@@ -214,6 +214,12 @@ export type ReadResult = 'ok' | 'unauthorized' | 'error'
 export const hasCompletedOnboarding = (): boolean =>
   state.onboarded || Boolean(state.profile)
 
+
+// Strict flag-only check for mid-flow guards: a user whose Qloo read
+// succeeded but who has not yet clicked "Open my dashboard" must still be
+// able to see the results step (5) — the profile leg of
+// hasCompletedOnboarding() would bounce them before the celebration.
+export const isExplicitlyOnboarded = (): boolean => state.onboarded
 // The real Qloo read. Falls back gracefully: on failure the screens keep any
 // earlier profile (or fixtures) and flag profileError.
 export const readAudience = async (niche: string): Promise<ReadResult> => {

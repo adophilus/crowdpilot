@@ -21,17 +21,6 @@ type OnscriptAccount = {
   isActive: boolean
 }
 
-type OnscriptSession = {
-  linked: boolean
-  email?: string
-  usingServiceAccount: boolean
-}
-
-const errText = (e: unknown): string =>
-  e && typeof e === 'object' && 'message' in e
-    ? String((e as { message?: string }).message)
-    : 'Something went wrong. Try again.'
-
 function Accounts() {
   const ws = useWorkspace()
 
@@ -40,14 +29,7 @@ function Accounts() {
   const [connecting, setConnecting] = useState<PlatformId | null>(null)
   const [disconnecting, setDisconnecting] = useState<string | null>(null)
   const [syncing, setSyncing] = useState(false)
-
-  // Onscript link state
-  const [session, setSession] = useState<OnscriptSession | null>(null)
-  const [email, setEmail] = useState('')
-  const [otp, setOtp] = useState('')
-  const [otpSent, setOtpSent] = useState(false)
-  const [linkBusy, setLinkBusy] = useState(false)
-  const [linkError, setLinkError] = useState('')
+  const [connectError, setConnectError] = useState('')
 
   const connectedFor = (id: PlatformId): OnscriptAccount | undefined =>
     accounts?.find((a) => a.platform === API_PLATFORM[id] && a.isActive)
@@ -80,32 +62,23 @@ function Accounts() {
     }
   }
 
-  const loadSession = async (): Promise<void> => {
-    try {
-      const { data } = await api.GET('/onscript/session', bearer())
-      if (data) setSession(data)
-    } catch {
-      /* link state stays unknown; section keeps the explainer */
-    }
-  }
-
   useEffect(() => {
     void loadAccounts()
-    void loadSession()
   }, [])
 
-  // Connect: Onscript-hosted OAuth in a popup, then poll until the account
-  // shows up (or 90s pass and we give up honestly).
+  // Connect: Onscript-hosted OAuth in a popup. While it's open, poll the
+  // mapped list AND claim whatever new account lands (Onscript attaches the
+  // connection to the shared service account; claim records that it's ours).
   const connect = async (p: (typeof PLATFORMS)[number]) => {
     setConnecting(p.id)
-    setLinkError('')
+    setConnectError('')
     try {
       const { data, error } = await api.POST('/onscript/connect/url', {
         ...bearer(),
         body: { platform: API_PLATFORM[p.id] }
       })
       if (error || !data) {
-        setLinkError(
+        setConnectError(
           error && 'message' in error && error.message
             ? error.message
             : `Couldn't start connecting ${p.short}. Try again.`
@@ -114,17 +87,28 @@ function Accounts() {
       }
       window.open(data.authUrl, 'crowdpilot-connect', 'width=520,height=720')
       const deadline = Date.now() + 90_000
+      let ticks = 0
       while (Date.now() < deadline) {
         await new Promise((r) => setTimeout(r, 2000))
+        ticks += 1
+        if (ticks % 2 === 0) {
+          const { data: claim } = await api.POST('/onscript/connect/claim', {
+            ...bearer()
+          })
+          if (claim?.claimed) {
+            await loadAccounts()
+            return
+          }
+        }
         const list = await loadAccounts()
         if (list?.some((a) => a.platform === API_PLATFORM[p.id] && a.isActive))
           return
       }
-      setLinkError(
+      setConnectError(
         `Still waiting on ${p.short}. Finish the popup, then hit Sync.`
       )
     } catch {
-      setLinkError(`Couldn't start connecting ${p.short}. Try again.`)
+      setConnectError(`Couldn't start connecting ${p.short}. Try again.`)
     } finally {
       setConnecting(null)
     }
@@ -153,63 +137,6 @@ function Accounts() {
       updateWorkspace(() => ({ synced: { x: now, fb: now, ig: now } }))
     }
     setSyncing(false)
-  }
-
-  const startLink = async () => {
-    setLinkBusy(true)
-    setLinkError('')
-    try {
-      const { error } = await api.POST('/onscript/link/start', {
-        ...bearer(),
-        body: { email: email.trim() }
-      })
-      if (error) {
-        setLinkError(errText(error))
-        return
-      }
-      setOtpSent(true)
-    } catch (e) {
-      setLinkError(errText(e))
-    } finally {
-      setLinkBusy(false)
-    }
-  }
-
-  const verifyLink = async () => {
-    setLinkBusy(true)
-    setLinkError('')
-    try {
-      const { error } = await api.POST('/onscript/link/verify', {
-        ...bearer(),
-        body: { email: email.trim(), otp: otp.trim() }
-      })
-      if (error) {
-        setLinkError(errText(error))
-        return
-      }
-      setOtpSent(false)
-      setOtp('')
-      await loadSession()
-      await loadAccounts()
-    } catch (e) {
-      setLinkError(errText(e))
-    } finally {
-      setLinkBusy(false)
-    }
-  }
-
-  const unlink = async () => {
-    setLinkBusy(true)
-    setLinkError('')
-    try {
-      await api.POST('/onscript/link/disconnect', bearer())
-      await loadSession()
-      await loadAccounts()
-    } catch (e) {
-      setLinkError(errText(e))
-    } finally {
-      setLinkBusy(false)
-    }
   }
 
   const [draft, setDraft] = useState('')
@@ -312,103 +239,6 @@ function Accounts() {
           </span>
           More platforms coming soon
         </div>
-      </section>
-
-      <section className="card card-stack" aria-labelledby="ons-h">
-        <h2 id="ons-h" className="card-title card-title-gap">
-          Posting account
-        </h2>
-        {session === null ? (
-          <p className="muted">Checking your Onscript link…</p>
-        ) : session.linked ? (
-          <>
-            <p className="muted">
-              Linked to <strong>{session.email}</strong>. Posts go out from your
-              own socials.
-            </p>
-            <div className="inline-form">
-              <button
-                className="btn btn-outline btn-form"
-                type="button"
-                disabled={linkBusy}
-                onClick={() => void unlink()}
-              >
-                {linkBusy ? 'Unlinking…' : 'Unlink account'}
-              </button>
-            </div>
-          </>
-        ) : (
-          <>
-            <p className="muted">
-              You are set up to post through CrowdPilot's shared demo account.
-              Link your own Onscript account to post from your own socials.
-            </p>
-            {!otpSent ? (
-              <form
-                className="inline-form"
-                onSubmit={(e) => {
-                  e.preventDefault()
-                  void startLink()
-                }}
-              >
-                <label htmlFor="cp-ons" className="sr-only">
-                  Onscript account email
-                </label>
-                <input
-                  id="cp-ons"
-                  className="field field-sm"
-                  type="email"
-                  required
-                  placeholder="you@yourbusiness.com"
-                  autoComplete="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-                <button
-                  className="btn btn-primary btn-form"
-                  type="submit"
-                  disabled={linkBusy || !email.trim()}
-                >
-                  {linkBusy ? 'Sending…' : 'Link your own socials'}
-                </button>
-              </form>
-            ) : (
-              <form
-                className="inline-form"
-                onSubmit={(e) => {
-                  e.preventDefault()
-                  void verifyLink()
-                }}
-              >
-                <label htmlFor="cp-otp" className="sr-only">
-                  Verification code
-                </label>
-                <input
-                  id="cp-otp"
-                  className="field field-sm"
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  required
-                  placeholder="Code sent to your email"
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value)}
-                />
-                <button
-                  className="btn btn-primary btn-form"
-                  type="submit"
-                  disabled={linkBusy || !otp.trim()}
-                >
-                  {linkBusy ? 'Verifying…' : 'Verify'}
-                </button>
-              </form>
-            )}
-          </>
-        )}
-        {linkError && (
-          <p className="form-error" role="alert">
-            {linkError}
-          </p>
-        )}
       </section>
 
       <section className="card card-stack" aria-labelledby="tn-h">

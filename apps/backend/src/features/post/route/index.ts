@@ -30,19 +30,6 @@ export const PostApiLive = HttpApiBuilder.group(Api, 'Posts', (handlers) =>
     const onscript = yield* OnscriptService
     const sql = yield* Sql
 
-    const tokenFor = (userId: string) =>
-      Effect.map(
-        Effect.tryPromise({
-          try: () =>
-            sql
-              .selectFrom('onscript_sessions')
-              .where('user_id', '=', userId)
-              .selectAll()
-              .executeTakeFirst(),
-          catch: (cause) => new OnscriptError({ message: String(cause) })
-        }),
-        (row) => row?.access_token ?? null
-      )
 
     // Maps upstream failure to the contract errors: 402 -> PlanLimitError,
     // other Onscript failures -> OnscriptError(502).
@@ -112,98 +99,97 @@ export const PostApiLive = HttpApiBuilder.group(Api, 'Posts', (handlers) =>
       )
       .handle('createPost', ({ payload }) =>
         Effect.flatMap(CurrentUser, (user) =>
-          Effect.flatMap(tokenFor(user.id), (token) =>
-            onscript.listConnectedAccounts({ token }).pipe(
-              Effect.flatMap((accounts) => {
-                const variants = payload.platforms.map((platform) => {
-                  const account = accounts.find(
-                    (candidate) =>
-                      candidate.platform === platform && candidate.isActive
+          Effect.flatMap(
+            Effect.tryPromise({
+              try: () =>
+                sql
+                  .selectFrom('connected_accounts')
+                  .select(['platform', 'onscript_account_id'])
+                  .where('user_id', '=', user.id)
+                  .execute(),
+              catch: (cause) => new OnscriptError({ message: String(cause) })
+            }),
+            (mapped) => {
+              const variants = payload.platforms.map((platform) => {
+                // Ownership lives in connected_accounts: each user posts
+                // through the account they connected, never anyone else's.
+                const account = mapped.find(
+                  (candidate) => candidate.platform === platform
+                )
+                if (!account) {
+                  return Effect.fail(
+                    new BadRequestError({
+                      message: `No ${platform} account connected. Connect it on the Accounts page`
+                    })
                   )
-                  if (!account) {
-                    return Effect.fail(
-                      new BadRequestError({
-                        message: `No active ${platform} account connected`
-                      })
-                    )
-                  }
-                  return Effect.succeed({
-                    platform: platform as OnscriptPlatform,
-                    text: payload.text,
-                    connectedAccountId: account.id
-                  })
+                }
+                return Effect.succeed({
+                  platform: platform as OnscriptPlatform,
+                  text: payload.text,
+                  connectedAccountId: account.onscript_account_id
                 })
+              })
 
-                return Effect.flatMap(
-                  Effect.all(variants, { discard: false }),
-                  (resolved) => {
-                    const status = payload.scheduledAt
-                      ? ('SCHEDULED' as const)
-                      : payload.publishNow === false
-                        ? ('DRAFT' as const)
-                        : ('PUBLISHING' as const)
+              return Effect.flatMap(
+                Effect.all(variants, { discard: false }),
+                (resolved) => {
+                  const status = payload.scheduledAt
+                    ? ('SCHEDULED' as const)
+                    : payload.publishNow === false
+                      ? ('DRAFT' as const)
+                      : ('PUBLISHING' as const)
 
-                    return onscript
-                      .createPost(
-                        {
-                          status,
-                          variants: resolved,
-                          ...(status === 'SCHEDULED' &&
-                          payload.scheduledAt !== undefined
-                            ? { scheduledAt: payload.scheduledAt }
-                            : {})
-                        },
-                        { token }
-                      )
-                      .pipe(
-                        Effect.flatMap((post) =>
-                          Effect.flatMap(
-                            Effect.tryPromise({
-                              try: () =>
-                                sql
-                                  .insertInto('posts')
-                                  .values({
-                                    user_id: user.id,
-                                    onscript_post_id: post.id,
-                                    text: payload.text,
-                                    platforms: [...payload.platforms],
-                                    // Onscript's 202 create response carries only {id};
-                                    // the intended status is what we asked for.
-                                    status
-                                  })
-                                  .returningAll()
-                                  .executeTakeFirstOrThrow(),
-                              catch: (cause) =>
-                                new OnscriptError({ message: String(cause) })
-                            }),
-                            (row) =>
-                              Effect.succeed(
-                                CreatePostSuccess.make({
-                                  id: row.id,
-                                  onscriptPostId: row.onscript_post_id,
+                  return onscript
+                    .createPost({
+                      status,
+                      variants: resolved,
+                      ...(status === 'SCHEDULED' &&
+                      payload.scheduledAt !== undefined
+                        ? { scheduledAt: payload.scheduledAt }
+                        : {})
+                    })
+                    .pipe(
+                      Effect.flatMap((post) =>
+                        Effect.flatMap(
+                          Effect.tryPromise({
+                            try: () =>
+                              sql
+                                .insertInto('posts')
+                                .values({
+                                  user_id: user.id,
+                                  onscript_post_id: post.id,
+                                  text: payload.text,
+                                  platforms: [...payload.platforms],
+                                  // Onscript's 202 create response carries only {id};
+                                  // the intended status is what we asked for.
                                   status
                                 })
-                              )
-                          )
-                        ),
-                        Effect.catchTag(
-                          'OnscriptServiceError',
-                          mapCreateError
+                                .returningAll()
+                                .executeTakeFirstOrThrow(),
+                            catch: (cause) =>
+                              new OnscriptError({ message: String(cause) })
+                          }),
+                          (row) =>
+                            Effect.succeed(
+                              CreatePostSuccess.make({
+                                id: row.id,
+                                onscriptPostId: row.onscript_post_id,
+                                status
+                              })
+                            )
                         )
-                      )
-                  }
-                )
-              }),
-              Effect.catchTag('OnscriptServiceError', toOnscriptApiError)
-            )
+                      ),
+                      Effect.catchTag('OnscriptServiceError', toOnscriptApiError)
+                    )
+                }
+              )
+            })
           )
-        )
       )
       .handle('publishPost', ({ path }) =>
         Effect.flatMap(CurrentUser, (user) =>
           Effect.flatMap(postRow(path.id, user.id), (row) =>
-            Effect.flatMap(tokenFor(user.id), (token) =>
-              onscript.publishPost(row.onscript_post_id, { token }).pipe(
+                          onscript.publishPost(row.onscript_post_id).pipe(
                 Effect.flatMap((post) =>
                   Effect.flatMap(
                     Effect.tryPromise({
@@ -231,12 +217,10 @@ export const PostApiLive = HttpApiBuilder.group(Api, 'Posts', (handlers) =>
             )
           )
         )
-      )
       .handle('getPost', ({ path }) =>
         Effect.flatMap(CurrentUser, (user) =>
           Effect.flatMap(postRow(path.id, user.id), (row) =>
-            Effect.flatMap(tokenFor(user.id), (token) =>
-              onscript.getPost(row.onscript_post_id, { token }).pipe(
+                          onscript.getPost(row.onscript_post_id).pipe(
                 Effect.flatMap((post) =>
                   Effect.flatMap(
                     Effect.tryPromise({
@@ -287,7 +271,6 @@ export const PostApiLive = HttpApiBuilder.group(Api, 'Posts', (handlers) =>
               )
             )
           )
-        )
       )
   })
 )

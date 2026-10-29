@@ -5,18 +5,13 @@ import type { OnscriptNotFoundError, OnscriptServiceError } from './error'
 // text+media_ids members of Onscript's PlatformPostVariant union).
 export type OnscriptPlatform = 'TWITTER' | 'FACEBOOK' | 'INSTAGRAM'
 
-// Token resolution context: a user-linked Onscript token, or null/omitted
-// for the shared CrowdPilot service account (chat agent calls).
-export interface TokenContext {
-  readonly token?: string | null
-}
-
 export interface ConnectedAccount {
   readonly id: string
   readonly platform: string
   readonly username: string
   readonly displayName?: string
   readonly isActive: boolean
+  readonly createdAt?: string
 }
 
 export interface PostVariantInput {
@@ -47,43 +42,29 @@ export interface PlatformPostOutcome {
   readonly failureReason?: string
 }
 
-export interface OnscriptUser {
-  readonly token: string
-  readonly email: string
-}
-
+// Every call rides the shared service token from config — Onscript has no
+// API-key feature, so the single service session IS the integration
+// credential. Per-user ownership of connected accounts is tracked by
+// CrowdPilot itself (connected_accounts table), not by Onscript.
 export interface OnscriptShape {
-  listConnectedAccounts: (
-    ctx?: TokenContext
-  ) => Effect.Effect<ReadonlyArray<ConnectedAccount>, OnscriptServiceError>
+  listConnectedAccounts: () => Effect.Effect<
+    ReadonlyArray<ConnectedAccount>,
+    OnscriptServiceError
+  >
   createPost: (
-    args: CreatePostArgs,
-    ctx?: TokenContext
+    args: CreatePostArgs
   ) => Effect.Effect<OnscriptPost, OnscriptServiceError>
   publishPost: (
-    postId: string,
-    ctx?: TokenContext
+    postId: string
   ) => Effect.Effect<OnscriptPost, OnscriptServiceError>
   getPost: (
-    postId: string,
-    ctx?: TokenContext
+    postId: string
   ) => Effect.Effect<OnscriptPost, OnscriptServiceError | OnscriptNotFoundError>
-  sendSignInOtp: (
-    email: string,
-    ctx?: TokenContext
-  ) => Effect.Effect<void, OnscriptServiceError>
-  verifyOtp: (
-    email: string,
-    otp: string,
-    ctx?: TokenContext
-  ) => Effect.Effect<OnscriptUser, OnscriptServiceError>
   initiateConnect: (
-    platform: OnscriptPlatform,
-    ctx?: TokenContext
+    platform: OnscriptPlatform
   ) => Effect.Effect<string, OnscriptServiceError>
   disconnectAccount: (
-    accountId: string,
-    ctx?: TokenContext
+    accountId: string
   ) => Effect.Effect<void, OnscriptServiceError>
 }
 

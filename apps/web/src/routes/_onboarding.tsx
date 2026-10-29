@@ -6,7 +6,7 @@ import {
 } from '@tanstack/react-router'
 import { Wordmark } from '../components/ui'
 import { getToken } from '../lib/api'
-import { hasCompletedOnboarding } from '../lib/workspace'
+import { isExplicitlyOnboarded } from '../lib/workspace'
 
 // Pathless layout around the onboarding flow. Users who already finished
 // onboarding land on the dashboard instead; the wizard state itself lives in
@@ -17,7 +17,7 @@ import { hasCompletedOnboarding } from '../lib/workspace'
 export const Route = createFileRoute('/_onboarding')({
   ssr: false,
   beforeLoad: () => {
-    if (getToken() && hasCompletedOnboarding()) {
+    if (getToken() && isExplicitlyOnboarded()) {
       throw redirect({ to: '/home', replace: true })
     }
   },

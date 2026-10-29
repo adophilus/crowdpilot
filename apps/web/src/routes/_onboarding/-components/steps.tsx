@@ -382,7 +382,11 @@ export function ConnectStep() {
                     </span>
                   </span>
                   <span className="conn-chip" data-on={p.soon ? undefined : on || undefined}>
-                    {p.soon ? 'Soon' : on ? 'Connected' : 'Off'}
+                    {p.soon
+                      ? 'Soon'
+                      : on
+                        ? 'Connected'
+                        : 'Off'}
                   </span>
                 </div>
               )
@@ -394,10 +398,6 @@ export function ConnectStep() {
               More platforms coming soon
             </div>
           </div>
-          <p className="quiet-note">
-            Connect your own accounts on the Accounts page after setup. You can
-            post via CrowdPilot's shared demo account either way.
-          </p>
         </section>
         <section aria-label="Describe a niche" style={{ order: isBreak ? 1 : 2 }}>
           <label htmlFor="cp-niche" className="label">

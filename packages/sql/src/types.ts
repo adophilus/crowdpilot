@@ -28,14 +28,9 @@ export interface ConnectedAccountsTable {
   user_id: ColumnType<string, string, never>
   platform: ColumnType<string, string, never>
   onscript_account_id: ColumnType<string, string, never>
+  username: ColumnType<string | null, string | null, never>
+  display_name: ColumnType<string | null, string | null, never>
   connected_at: ColumnType<Date, never, never>
-}
-
-export interface OnscriptSessionsTable {
-  user_id: ColumnType<string, string, never>
-  email: ColumnType<string, string, string>
-  access_token: ColumnType<string, string, string>
-  created_at: ColumnType<Date, never, never>
 }
 
 export interface PostsTable {
@@ -57,6 +52,5 @@ export interface Database {
   users: UsersTable
   sessions: SessionsTable
   connected_accounts: ConnectedAccountsTable
-  onscript_sessions: OnscriptSessionsTable
   posts: PostsTable
 }

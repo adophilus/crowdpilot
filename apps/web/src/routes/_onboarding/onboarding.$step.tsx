@@ -2,7 +2,7 @@ import { createFileRoute, redirect } from '@tanstack/react-router'
 import { getToken } from '../../lib/api'
 import { PLATFORMS } from '../../lib/fixtures'
 import { getOnboarding } from '../../lib/onboarding'
-import { hasCompletedOnboarding } from '../../lib/workspace'
+import { isExplicitlyOnboarded } from '../../lib/workspace'
 import {
   AccountStep,
   ConnectStep,
@@ -33,7 +33,7 @@ export const Route = createFileRoute('/_onboarding/onboarding/$step')({
     }
     const step = params.step as StepParam
     // Finished onboarding already? Straight to the dashboard.
-    if (getToken() && hasCompletedOnboarding()) {
+    if (getToken() && isExplicitlyOnboarded()) {
       throw redirect({ to: '/home', replace: true })
     }
     if (step === '1') {

@@ -11,9 +11,7 @@ import {
   type CreatePostArgs,
   type OnscriptPlatform,
   type OnscriptPost,
-  type OnscriptUser,
-  type PlatformPostOutcome,
-  type TokenContext
+  type PlatformPostOutcome
 } from './interface'
 
 const firstPermalink = (posts: unknown): string | undefined => {
@@ -89,11 +87,10 @@ export const OnscriptServiceLive = Layer.effect(
     const call = Effect.fnUntraced(function* (
       method: 'GET' | 'POST' | 'DELETE',
       path: string,
-      payload: unknown,
-      token?: string | null
+      payload: unknown
     ) {
       const url = `${baseUrl}${path}`
-      const bearer = token ?? config.onscript.sessionToken
+      const bearer = config.onscript.sessionToken
       const result = yield* Effect.tryPromise({
         try: async () => {
           const response = await fetch(url, {
@@ -134,8 +131,8 @@ export const OnscriptServiceLive = Layer.effect(
     })
 
     return OnscriptService.of({
-      listConnectedAccounts: (ctx) =>
-        call('GET', '/integrations/connected-accounts', undefined, ctx?.token).pipe(
+      listConnectedAccounts: () =>
+        call('GET', '/integrations/connected-accounts', undefined).pipe(
           Effect.map((json): ReadonlyArray<ConnectedAccount> => {
             const data = (json as { data?: unknown } | null)?.data
             if (!Array.isArray(data)) return []
@@ -164,7 +161,7 @@ export const OnscriptServiceLive = Layer.effect(
           Effect.withSpan('onscript.listConnectedAccounts')
         ),
 
-      createPost: (args: CreatePostArgs, ctx) =>
+      createPost: (args: CreatePostArgs) =>
         call(
           'POST',
           '/posts',
@@ -182,26 +179,24 @@ export const OnscriptServiceLive = Layer.effect(
               media_ids: variant.mediaIds ? [...variant.mediaIds] : []
             }))
           },
-          ctx?.token
         ).pipe(
           Effect.map(postOf),
           Effect.withSpan('onscript.createPost')
         ),
 
-      publishPost: (postId, ctx) =>
+      publishPost: (postId) =>
         // Empty object, not no-body — the API rejects a null payload.
         call(
           'POST',
           `/posts/${encodeURIComponent(postId)}/publish`,
           {},
-          ctx?.token
         ).pipe(
           Effect.map(postOf),
           Effect.withSpan('onscript.publishPost')
         ),
 
-      getPost: (postId, ctx) =>
-        call('GET', `/posts/${encodeURIComponent(postId)}`, undefined, ctx?.token).pipe(
+      getPost: (postId) =>
+        call('GET', `/posts/${encodeURIComponent(postId)}`, undefined).pipe(
           Effect.map(postOf),
           Effect.catchTag(
             'OnscriptServiceError',
@@ -220,47 +215,11 @@ export const OnscriptServiceLive = Layer.effect(
           Effect.withSpan('onscript.getPost')
         ),
 
-      sendSignInOtp: (email, ctx) =>
-        call(
-          'POST',
-          '/auth/sign-in/strategy/email',
-          { email },
-          ctx?.token
-        ).pipe(
-          // An unexpired OTP already in flight is fine — the inbox still has
-          // a usable code, so treat Onscript's 400 as success.
-          Effect.catchTag('OnscriptServiceError', (error) =>
-            error.status === 400 &&
-            String(error.cause).includes('TokenNotExpiredError')
-              ? Effect.void
-              : Effect.fail(error)
-          ),
-          Effect.withSpan('onscript.sendSignInOtp')
-        ),
-
-      verifyOtp: (email, otp, ctx): Effect.Effect<OnscriptUser, OnscriptServiceError> =>
-        call('POST', '/auth/verification', { email, otp }, ctx?.token).pipe(
-          Effect.flatMap((json) => {
-            const body = (json ?? {}) as { access_token?: unknown }
-            const token = body.access_token
-            if (typeof token !== 'string' || token === '') {
-              return Effect.fail(
-                new OnscriptServiceError({
-                  cause: 'Onscript verification response had no access_token'
-                })
-              )
-            }
-            return Effect.succeed({ token, email })
-          }),
-          Effect.withSpan('onscript.verifyOtp')
-        ),
-
-      initiateConnect: (platform: OnscriptPlatform, ctx) =>
+      initiateConnect: (platform: OnscriptPlatform) =>
         call(
           'GET',
           `/integrations/${platform.toLowerCase()}/oauth/initiate`,
           undefined,
-          ctx?.token
         ).pipe(
           Effect.flatMap((json) => {
             const authUrl = (json as { auth_url?: unknown } | null)?.auth_url
@@ -275,12 +234,11 @@ export const OnscriptServiceLive = Layer.effect(
           Effect.withSpan('onscript.initiateConnect')
         ),
 
-      disconnectAccount: (accountId, ctx) =>
+      disconnectAccount: (accountId) =>
         call(
           'POST',
           '/integrations/disconnect',
           { account_id: accountId },
-          ctx?.token
         ).pipe(
           Effect.asVoid,
           Effect.withSpan('onscript.disconnectAccount')

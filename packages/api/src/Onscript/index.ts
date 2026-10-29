@@ -2,6 +2,7 @@ import { HttpApiEndpoint, HttpApiGroup, OpenApi } from '@effect/platform'
 import { Schema } from 'effect'
 import SessionMiddleware from '../Auth/SessionMiddleware'
 import BadRequestError from '../common/BadRequestError'
+import NotFoundError from '../common/NotFoundError'
 import OnscriptError from '../common/OnscriptError'
 import UnauthorizedError from '../common/UnauthorizedError'
 
@@ -11,38 +12,12 @@ export const Platform = Schema.Union(
   Schema.Literal('INSTAGRAM')
 )
 
-export class SessionStatusSuccess extends Schema.TaggedClass<SessionStatusSuccess>()(
-  'SessionStatusSuccess',
-  {
-    // linked = the session carries a user-owned Onscript token; when false
-    // all Onscript calls fall back to the shared CrowdPilot service account.
-    linked: Schema.Boolean,
-    email: Schema.optional(Schema.String),
-    usingServiceAccount: Schema.Boolean
-  }
-) {}
-
-export class LinkStartPayload extends Schema.Class<LinkStartPayload>('LinkStartPayload')({
-  email: Schema.String
-}) {}
-
-export class LinkVerifyPayload extends Schema.Class<LinkVerifyPayload>('LinkVerifyPayload')({
-  email: Schema.String,
-  otp: Schema.String
-}) {}
-
-export class LinkVerifySuccess extends Schema.TaggedClass<LinkVerifySuccess>()(
-  'LinkVerifySuccess',
-  { email: Schema.String }
-) {}
-
-export class OkSuccess extends Schema.TaggedClass<OkSuccess>()('OkSuccess', {
-  ok: Schema.Literal(true)
-}) {}
-
 export class AccountsSuccess extends Schema.TaggedClass<AccountsSuccess>()(
   'AccountsSuccess',
   {
+    // Only accounts mapped to the signed-in CrowdPilot user — connected
+    // accounts live under one shared Onscript account, and ownership is
+    // CrowdPilot's job (connected_accounts table).
     accounts: Schema.Array(
       Schema.Struct({
         id: Schema.String,
@@ -55,75 +30,40 @@ export class AccountsSuccess extends Schema.TaggedClass<AccountsSuccess>()(
   }
 ) {}
 
-export class ConnectUrlPayload extends Schema.Class<ConnectUrlPayload>('ConnectUrlPayload')({
-  platform: Platform
-}) {}
+const ConnectUrlPayload = Schema.Struct({ platform: Platform })
 
 export class ConnectUrlSuccess extends Schema.TaggedClass<ConnectUrlSuccess>()(
   'ConnectUrlSuccess',
   { authUrl: Schema.String }
 ) {}
 
-export class DisconnectPayload extends Schema.Class<DisconnectPayload>('DisconnectPayload')({
-  accountId: Schema.String
-}) {}
+const ClaimedAccount = Schema.Struct({
+  id: Schema.String,
+  platform: Platform,
+  username: Schema.optional(Schema.String),
+  displayName: Schema.optional(Schema.String)
+})
 
-const sessionStatus = HttpApiEndpoint.get('sessionStatus', '/onscript/session')
-  .addSuccess(SessionStatusSuccess)
-  .addError(UnauthorizedError, { status: 401 })
-  .addError(OnscriptError, { status: 502 })
-  .middleware(SessionMiddleware)
-  .annotate(
-    OpenApi.Description,
-    'Onscript link status for the signed-in CrowdPilot user.'
-  )
+export class ConnectClaimSuccess extends Schema.TaggedClass<ConnectClaimSuccess>()(
+  'ConnectClaimSuccess',
+  {
+    claimed: Schema.Boolean,
+    account: Schema.optional(ClaimedAccount)
+  }
+) {}
 
-const linkStart = HttpApiEndpoint.post('linkStart', '/onscript/link/start')
-  .setPayload(LinkStartPayload)
-  .addSuccess(OkSuccess)
-  .addError(BadRequestError, { status: 400 })
-  .addError(UnauthorizedError, { status: 401 })
-  .addError(OnscriptError, { status: 502 })
-  .middleware(SessionMiddleware)
-  .annotate(
-    OpenApi.Description,
-    'Starts the Onscript account link: sends an Onscript sign-in OTP to the given email.'
-  )
+const DisconnectPayload = Schema.Struct({ accountId: Schema.String })
 
-const linkVerify = HttpApiEndpoint.post('linkVerify', '/onscript/link/verify')
-  .setPayload(LinkVerifyPayload)
-  .addSuccess(LinkVerifySuccess)
-  .addError(BadRequestError, { status: 400 })
-  .addError(UnauthorizedError, { status: 401 })
-  .addError(OnscriptError, { status: 502 })
-  .middleware(SessionMiddleware)
-  .annotate(
-    OpenApi.Description,
-    'Verifies the Onscript OTP and stores the Onscript session token for this CrowdPilot user.'
-  )
-
-const linkDisconnect = HttpApiEndpoint.post(
-  'linkDisconnect',
-  '/onscript/link/disconnect'
-)
-  .addSuccess(OkSuccess)
-  .addError(UnauthorizedError, { status: 401 })
-  .addError(OnscriptError, { status: 502 })
-  .middleware(SessionMiddleware)
-  .annotate(
-    OpenApi.Description,
-    'Removes the stored Onscript session token; falls back to the service account.'
-  )
+export class OkSuccess extends Schema.TaggedClass<OkSuccess>()('OkSuccess', {}) {}
 
 const accounts = HttpApiEndpoint.get('onscriptAccounts', '/onscript/accounts')
   .addSuccess(AccountsSuccess)
-  .addError(BadRequestError, { status: 400 })
   .addError(UnauthorizedError, { status: 401 })
   .addError(OnscriptError, { status: 502 })
   .middleware(SessionMiddleware)
   .annotate(
     OpenApi.Description,
-    'Connected social accounts, from the linked Onscript account or the service account.'
+    "The social accounts mapped to the signed-in CrowdPilot user. Empty until they connect one (Accounts page)."
   )
 
 const connectUrl = HttpApiEndpoint.post(
@@ -138,7 +78,21 @@ const connectUrl = HttpApiEndpoint.post(
   .middleware(SessionMiddleware)
   .annotate(
     OpenApi.Description,
-    'Returns the Onscript-hosted OAuth url for connecting a platform account. Open it in a popup, then poll /onscript/accounts until the account appears.'
+    'Starts a connect: returns the Onscript-hosted OAuth url for the platform. Open it in a popup, then call /onscript/connect/claim after it closes (or poll /onscript/accounts).'
+  )
+
+const connectClaim = HttpApiEndpoint.post(
+  'onscriptConnectClaim',
+  '/onscript/connect/claim'
+)
+  .addSuccess(ConnectClaimSuccess)
+  .addError(BadRequestError, { status: 400 })
+  .addError(UnauthorizedError, { status: 401 })
+  .addError(OnscriptError, { status: 502 })
+  .middleware(SessionMiddleware)
+  .annotate(
+    OpenApi.Description,
+    'Claims the social account that just finished the OAuth popup for the signed-in user (matched against the pending connect started by /onscript/connect/url). claimed=false when nothing new appeared yet.'
   )
 
 const disconnectAccount = HttpApiEndpoint.post(
@@ -147,22 +101,19 @@ const disconnectAccount = HttpApiEndpoint.post(
 )
   .setPayload(DisconnectPayload)
   .addSuccess(OkSuccess)
-  .addError(BadRequestError, { status: 400 })
+  .addError(NotFoundError, { status: 404 })
   .addError(UnauthorizedError, { status: 401 })
   .addError(OnscriptError, { status: 502 })
   .middleware(SessionMiddleware)
   .annotate(
     OpenApi.Description,
-    'Disconnects a connected social account in Onscript.'
+    'Disconnects one of the signed-in user\u2019s own connected accounts (404 for accounts owned by other users).'
   )
 
 const OnscriptApi = HttpApiGroup.make('Onscript')
-  .add(sessionStatus)
-  .add(linkStart)
-  .add(linkVerify)
-  .add(linkDisconnect)
   .add(accounts)
   .add(connectUrl)
+  .add(connectClaim)
   .add(disconnectAccount)
 
 export default OnscriptApi
