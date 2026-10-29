@@ -40,10 +40,11 @@ export const Route = createRootRouteWithContext<{ queryClient: typeof queryClien
   notFoundComponent: function NotFound() {
     const navigate = useNavigate()
     useEffect(() => {
-      void navigate({
-        to: typeof window !== 'undefined' && getToken() ? '/home' : '/onboarding/account',
-        replace: true
-      })
+      void navigate(
+        typeof window !== 'undefined' && getToken()
+          ? { to: '/home', replace: true }
+          : { to: '/onboarding/$step', params: { step: '1' }, replace: true }
+      )
     }, [navigate])
     return null
   }

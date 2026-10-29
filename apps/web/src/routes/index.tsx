@@ -10,11 +10,11 @@ export const Route = createFileRoute('/')({
   ssr: false,
   beforeLoad: () => {
     if (!getToken()) {
-      throw redirect({ to: '/onboarding/account', replace: true })
+      throw redirect({ to: '/onboarding/$step', params: { step: '1' }, replace: true })
     }
-    throw redirect({
-      to: hasCompletedOnboarding() ? '/home' : '/onboarding/goal',
-      replace: true
-    })
+    if (hasCompletedOnboarding()) {
+      throw redirect({ to: '/home', replace: true })
+    }
+    throw redirect({ to: '/onboarding/$step', params: { step: '2' }, replace: true })
   }
 })

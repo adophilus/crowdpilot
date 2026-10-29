@@ -196,6 +196,56 @@ export const QlooServiceMockLive = Layer.effect(
         return { entities, evidenceRefs: [refId] }
       }).pipe(Effect.withSpan('qloo.insights'))
 
+    // Tag affinity: frequency of each fixture tag across the signal
+    // entities, normalized to a 0.55–0.95 score band.
+    const profileFromIds = (
+      entityIds: readonly string[]
+    ): Effect.Effect<QlooProfileCard, QlooNotFoundError> =>
+      Effect.gen(function* () {
+        for (const id of entityIds) {
+          if (!byId.has(id)) {
+            return yield* Effect.fail(new QlooNotFoundError({ entityId: id }))
+          }
+        }
+        const counts = new Map<string, number>()
+        for (const id of entityIds) {
+          for (const tag of byId.get(id)?.tags ?? []) {
+            counts.set(tag, (counts.get(tag) ?? 0) + 1)
+          }
+        }
+        const max = Math.max(1, ...counts.values())
+        const topTags = [...counts.entries()]
+          .map(([tag, count]) => ({
+            tag: TAGS.find((t) => t.id === tag)?.name ?? tag,
+            score: round2(0.55 + (0.4 * count) / max)
+          }))
+          .sort((a, b) => b.score - a.score)
+          .slice(0, 8)
+
+        const affinities = []
+        const evidenceRefs: string[] = []
+        for (const domain of PROFILE_DOMAINS) {
+          const result = yield* insightsImpl({
+            filterType: domain,
+            signalEntityIds: entityIds
+          })
+          if (result.entities.length > 0) {
+            affinities.push({
+              domain,
+              picks: result.entities.slice(0, 3).map((entity) => ({
+                id: entity.id,
+                name: entity.name,
+                type: entity.type,
+                score: entity.score ?? 0
+              }))
+            })
+          }
+          evidenceRefs.push(...result.evidenceRefs)
+        }
+
+        return { topTags, affinities, evidenceRefs }
+      }).pipe(Effect.withSpan('qloo.profileFromIds'))
+
     return QlooService.of({
       search: (query, type) =>
         Effect.gen(function* () {
@@ -219,60 +269,22 @@ export const QlooServiceMockLive = Layer.effect(
 
       insights: (args) => insightsImpl(args),
 
-      buildProfile: (entityIds, tagIds): Effect.Effect<QlooProfileCard, QlooNotFoundError> =>
+      buildProfile: (entityIds) => profileFromIds(entityIds),
+
+      buildProfileFromNiche: (niche) =>
         Effect.gen(function* () {
-          if (entityIds.length === 0) {
+          const q = niche.trim().toLowerCase()
+          const words = q.split(/\s+/).filter((w) => w.length > 2)
+          const ids = ENTITIES.filter((entity) =>
+            words.some((w) => entity.name.toLowerCase().includes(w))
+          ).map((entity) => entity.id)
+          if (ids.length < 2) {
             return yield* Effect.fail(
-              new QlooNotFoundError({ query: 'empty entity list' })
+              new QlooNotFoundError({ query: niche })
             )
           }
-          for (const id of entityIds) {
-            if (!byId.has(id)) {
-              return yield* Effect.fail(new QlooNotFoundError({ entityId: id }))
-            }
-          }
-
-          // Tag affinity: frequency of each fixture tag across the signal
-          // entities, normalized to a 0.55–0.95 score band.
-          const counts = new Map<string, number>()
-          for (const id of entityIds) {
-            for (const tag of byId.get(id)?.tags ?? []) {
-              counts.set(tag, (counts.get(tag) ?? 0) + 1)
-            }
-          }
-          const max = Math.max(1, ...counts.values())
-          const topTags = [...counts.entries()]
-            .map(([tag, count]) => ({
-              tag: TAGS.find((t) => t.id === tag)?.name ?? tag,
-              score: round2(0.55 + (0.4 * count) / max)
-            }))
-            .sort((a, b) => b.score - a.score)
-            .slice(0, 8)
-
-          const affinities = []
-          const evidenceRefs: string[] = []
-          for (const domain of PROFILE_DOMAINS) {
-            const result = yield* insightsImpl({
-              filterType: domain,
-              signalEntityIds: entityIds,
-              signalTagIds: tagIds
-            })
-            if (result.entities.length > 0) {
-              affinities.push({
-                domain,
-                picks: result.entities.slice(0, 3).map((entity) => ({
-                  id: entity.id,
-                  name: entity.name,
-                  type: entity.type,
-                  score: entity.score ?? 0
-                }))
-              })
-            }
-            evidenceRefs.push(...result.evidenceRefs)
-          }
-
-          return { topTags, affinities, evidenceRefs }
-        }).pipe(Effect.withSpan('qloo.buildProfile'))
+          return yield* profileFromIds(ids)
+        }).pipe(Effect.withSpan('qloo.buildProfileFromNiche'))
     })
   })
 )

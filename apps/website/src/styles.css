@@ -2241,3 +2241,28 @@ button {
     gap: 14px 24px;
   }
 }
+
+/* Legal pages (terms / privacy) */
+.legal {
+  max-width: 42rem;
+  margin: 0 auto;
+  padding: 3.5rem 1.5rem 4rem;
+}
+.legal h1 {
+  margin: 0.75rem 0 1rem;
+}
+.legal h2 {
+  margin: 2rem 0 0.5rem;
+}
+.legal p {
+  color: var(--ink-2);
+  line-height: 1.65;
+  margin: 0.5rem 0;
+}
+.legal-updated {
+  color: var(--muted) !important;
+  font-size: 0.875rem;
+}
+.legal a {
+  color: var(--ink);
+}

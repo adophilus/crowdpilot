@@ -7,7 +7,7 @@ import {
   type PlatformId
 } from '../../lib/fixtures'
 import { updateWorkspace, useWorkspace } from '../../lib/workspace'
-import { Icon } from '../../components/ui'
+import { Icon, PlatformMark } from '../../components/ui'
 
 export const Route = createFileRoute('/_app/accounts')({
   component: Accounts
@@ -121,7 +121,7 @@ function Accounts() {
           return
       }
       setLinkError(
-        `Still waiting on ${p.short} — finish the popup, then hit Sync.`
+        `Still waiting on ${p.short}. Finish the popup, then hit Sync.`
       )
     } catch {
       setLinkError(`Couldn't start connecting ${p.short}. Try again.`)
@@ -257,9 +257,9 @@ function Accounts() {
           const on = Boolean(acct)
           const isConn = connecting === p.id
           return (
-            <div key={p.id} className="acct-row" data-on={on || undefined}>
+            <div key={p.id} className="acct-row" data-on={p.soon ? undefined : on || undefined}>
               <span className="platform-glyph platform-glyph-lg" aria-hidden="true">
-                <span />
+                <PlatformMark platform={p.id} size={26} />
               </span>
               <span className="acct-row-text">
                 <span className="acct-row-name">
@@ -269,8 +269,8 @@ function Accounts() {
                   )}
                 </span>
                 <span className="acct-row-sub">
-                  {p.mediaOnly
-                    ? 'Needs media uploads — soon'
+                  {p.soon
+                    ? 'Coming soon'
                     : on
                       ? `Reads followers & engagement · Posts with your approval${
                           ws.synced[p.id] ? ` · Synced ${ws.synced[p.id]}` : ''
@@ -278,11 +278,11 @@ function Accounts() {
                       : 'Not connected'}
                 </span>
               </span>
-              <span className="conn-chip" data-on={on || undefined}>
-                {on ? 'Connected' : p.mediaOnly ? 'Soon' : 'Off'}
+              <span className="conn-chip" data-on={p.soon ? undefined : on || undefined}>
+                {p.soon ? 'Soon' : on ? 'Connected' : 'Off'}
               </span>
               <span className="acct-row-actions">
-                {p.mediaOnly ? null : on && acct ? (
+                {p.soon ? null : on && acct ? (
                   <button
                     className="btn btn-outline btn-row btn-row-quiet"
                     type="button"

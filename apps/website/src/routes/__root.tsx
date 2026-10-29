@@ -11,9 +11,9 @@ import '@fontsource/caveat/600.css'
 import '../styles.css'
 import { FAVICON_HREF } from '../components/Logo'
 
-const TITLE = 'CrowdPilot — Find your people'
+const TITLE = 'CrowdPilot · Find your people'
 const DESCRIPTION =
-  'CrowdPilot reads the taste of the audience you have, and the one you want — grounded in Qloo’s taste graph — then shows you what to post, host or stock next.'
+  'CrowdPilot reads the taste of the audience you have, and the one you want, grounded in Qloo’s taste graph, then shows you what to post, host or stock next.'
 
 export const Route = createRootRoute({
   head: () => ({

@@ -2,7 +2,7 @@ import { createFileRoute, Link } from '@tanstack/react-router'
 import { useEffect, useRef, useState } from 'react'
 import { Icon, MatchStar, PilotAvatar, Radar } from '../../components/ui'
 import {
-  DEMO_SEED,
+  DEMO_NICHE,
   NICHES,
   PILOT_READ,
   TASTE_TABS,
@@ -46,7 +46,7 @@ function Audience() {
 
   const refresh = async () => {
     setRefreshing(true)
-    await readAudience(ws.seed ?? DEMO_SEED)
+    await readAudience(ws.niche || DEMO_NICHE)
     setRefreshing(false)
   }
 

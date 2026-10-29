@@ -8,7 +8,6 @@ import {
   DEMO_BUSINESS,
   type GoalId,
   type PlatformId,
-  type ProfileSeed,
   type SwitchId,
   type ToneId
 } from './fixtures'
@@ -28,7 +27,6 @@ export interface WorkspaceState {
   business: { name: string; city: string; type: BizType; first: string }
   goal: GoalId | null
   niche: string
-  seed: ProfileSeed | null
   profile: Profile | null
   profileUpdatedAt: number | null
   profileError: boolean
@@ -49,7 +47,6 @@ const blank = (): WorkspaceState => ({
   business: { ...DEMO_BUSINESS, first: DEMO_BUSINESS.owner },
   goal: null,
   niche: '',
-  seed: null,
   profile: null,
   profileUpdatedAt: null,
   profileError: false,
@@ -219,15 +216,11 @@ export const hasCompletedOnboarding = (): boolean =>
 
 // The real Qloo read. Falls back gracefully: on failure the screens keep any
 // earlier profile (or fixtures) and flag profileError.
-export const readAudience = async (seed: ProfileSeed): Promise<ReadResult> => {
-  updateWorkspace({ seed })
+export const readAudience = async (niche: string): Promise<ReadResult> => {
   try {
     const { data, error, response } = await api.POST('/qloo/profile', {
       ...bearer(),
-      body: {
-        entityIds: seed.entityIds,
-        ...(seed.tagIds ? { tagIds: seed.tagIds } : {})
-      }
+      body: { niche }
     })
     if (error || !data) {
       updateWorkspace({ profileError: true })

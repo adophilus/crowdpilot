@@ -15,7 +15,7 @@ import {
   getToken,
   isDemoSession
 } from '../lib/api'
-import { DEMO_SEED } from '../lib/fixtures'
+import { DEMO_NICHE } from '../lib/fixtures'
 import {
   claimWorkspace,
   getWorkspace,
@@ -30,7 +30,7 @@ export const Route = createFileRoute('/_app')({
   ssr: false,
   beforeLoad: () => {
     if (!getToken()) {
-      throw redirect({ to: '/onboarding/account', replace: true })
+      throw redirect({ to: '/onboarding/$step', params: { step: '1' }, replace: true })
     }
   },
   component: AppLayout
@@ -63,7 +63,7 @@ function AppLayout() {
     const ws = getWorkspace()
     if (!ws.profile && !profileRequested) {
       profileRequested = true
-      void readAudience(ws.seed ?? DEMO_SEED)
+      void readAudience(ws.niche || DEMO_NICHE)
     }
   }, [])
 
@@ -105,7 +105,7 @@ function Sidebar() {
     clearSession()
     resetWorkspace()
     profileRequested = false
-    void navigate({ to: '/onboarding/account', replace: true })
+    void navigate({ to: '/onboarding/$step', params: { step: '1' }, replace: true })
   }
 
   const name = ws.business.name || 'Your workspace'

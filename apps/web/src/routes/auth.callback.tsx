@@ -38,7 +38,8 @@ function AuthCallback() {
         claimWorkspace({ email: data.user.email })
         setDone(true)
         // Returning users who already finished onboarding go straight in.
-        navigate({ to: hasCompletedOnboarding() ? '/home' : '/onboarding/goal' })
+        if (hasCompletedOnboarding()) void navigate({ to: '/home' })
+        else void navigate({ to: '/onboarding/$step', params: { step: '2' } })
       })
       .catch(() => {
         if (!cancelled) setError('Your Google session couldn’t be verified. Please try again.')
@@ -56,7 +57,7 @@ function AuthCallback() {
             <>
               <h1 className="onb-title">Sign-in hit a snag.</h1>
               <p className="onb-lede">{error}</p>
-              <Link to="/onboarding/account" className="btn btn-primary">
+              <Link to="/onboarding/$step" params={{ step: '1' }} className="btn btn-primary">
                 Back to sign-in
               </Link>
             </>

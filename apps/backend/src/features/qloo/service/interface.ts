@@ -71,6 +71,9 @@ export interface QlooShape {
     entityIds: ReadonlyArray<string>,
     tagIds?: ReadonlyArray<string>
   ) => Effect.Effect<QlooProfileCard, QlooServiceError | QlooNotFoundError>
+  buildProfileFromNiche: (
+    niche: string
+  ) => Effect.Effect<QlooProfileCard, QlooServiceError | QlooNotFoundError>
 }
 
 export class QlooService extends Context.Tag('QlooService')<

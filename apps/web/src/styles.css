@@ -836,7 +836,7 @@ form .field {
   font-size: 14px;
 }
 .quiet-note {
-  margin: -10px 0 22px;
+  margin: 16px 0 22px;
   font-size: 13px;
   line-height: 1.5;
   color: var(--ink-4);
@@ -943,6 +943,26 @@ form .field {
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
+}
+.onb-ring {
+  flex: none;
+  margin-left: auto;
+}
+.onb-ring-arc {
+  transition: stroke-dashoffset 480ms var(--ease-out);
+}
+.onb-ring text {
+  font-family: var(--font-body);
+}
+.onb-ring .onb-ring-n {
+  font-size: 12px;
+  font-weight: 600;
+  fill: var(--ink);
+}
+.onb-ring .onb-ring-t {
+  font-size: 9px;
+  font-weight: 500;
+  fill: var(--ink-6);
 }
 .onb-mark {
   display: flex;

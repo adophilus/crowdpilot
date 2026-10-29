@@ -52,17 +52,17 @@ export const GOALS: GoalDef[] = [
   }
 ]
 
-// Honest platform list: Onscript ships these three only, and Instagram
-// posting needs media upload we don't do yet — shown disabled.
+// Honest platform list: Onscript ships these three only. Facebook +
+// Instagram posting is paused (provider subscription lapsed) — shown disabled.
 export const PLATFORMS: {
   id: PlatformId
   name: string
   short: string
-  mediaOnly?: boolean
+  soon?: boolean
 }[] = [
   { id: 'x', name: 'X (Twitter)', short: 'X' },
-  { id: 'fb', name: 'Facebook', short: 'Facebook' },
-  { id: 'ig', name: 'Instagram', short: 'Instagram', mediaOnly: true }
+  { id: 'fb', name: 'Facebook', short: 'Facebook', soon: true },
+  { id: 'ig', name: 'Instagram', short: 'Instagram', soon: true }
 ]
 
 // Fixture id ↔ Onscript platform enum.
@@ -75,12 +75,6 @@ export const API_PLATFORM: Record<PlatformId, ApiPlatform> = {
 export const platformShort = (p: ApiPlatform): string =>
   PLATFORMS.find((x) => API_PLATFORM[x.id] === p)?.short ?? p
 
-export const NICHE_CHIPS = [
-  'Plant-based foodies in Nairobi',
-  'Afro-house fans in Accra',
-  'Vintage & thrift lovers in Lagos'
-]
-
 export const READING_TASKS = [
   'Mapping taste across 10 cultural domains',
   'Finding niches inside your crowd',
@@ -88,6 +82,9 @@ export const READING_TASKS = [
 ]
 
 // Fallback "They love" chips when Qloo is unreachable.
+// The Kofi's Café demo persona's crowd, sent to POST /qloo/profile.
+export const DEMO_NICHE = 'alté and Afrobeats fans in Lagos'
+
 export const LOVES = [
   'Afrobeats',
   'Street food',
@@ -101,55 +98,6 @@ export const NICHES_FOUND = [
   'Vintage & thrift pop-ups',
   'Spoken-word & poetry'
 ]
-
-// ---- Qloo seeds ----
-// The web app has no entity search endpoint yet, so onboarding answers map to
-// seed signals. Ids mirror the fixture table in
-// apps/backend/src/features/qloo/service/mock.ts.
-
-export interface ProfileSeed {
-  entityIds: string[]
-  tagIds?: string[]
-}
-
-const LAGOS_SEED = [
-  'urn:entity:artist:burna-boy',
-  'urn:entity:artist:kabza-de-small',
-  'urn:entity:artist:fela-kuti',
-  'urn:entity:artist:asake',
-  'urn:entity:brand:cafe-neo',
-  'urn:entity:place:terra-kulture'
-]
-
-const NYC_SEED = [
-  'urn:entity:artist:vampire-weekend',
-  'urn:entity:artist:norah-jones',
-  'urn:entity:place:dominique-ansel-bakery',
-  'urn:entity:brand:blue-bottle-coffee'
-]
-
-const TAG_KEYWORDS: [RegExp, string][] = [
-  [/afro ?beats?|afro-?house|alt[eé]/i, 'urn:tag:genre:artist:afrobeats'],
-  [/amapiano/i, 'urn:tag:genre:artist:amapiano'],
-  [/highlife/i, 'urn:tag:genre:artist:highlife'],
-  [/indie|rock/i, 'urn:tag:genre:artist:indie-rock'],
-  [/jollof|suya|west african|nigerian|ghanaian/i, 'urn:tag:cuisine:restaurant:west-african'],
-  [/coffee|caf[eé]|espresso|brunch/i, 'urn:tag:category:place:coffee-shops']
-]
-
-export const DEMO_SEED: ProfileSeed = { entityIds: LAGOS_SEED }
-
-export const seedFor = (niche: string): ProfileSeed => {
-  const text = niche.trim()
-  const western = /new york|nyc|brooklyn|london|berlin|indie|rock/i.test(text)
-  const tagIds = TAG_KEYWORDS.filter(([re]) => re.test(text)).map(
-    ([, id]) => id
-  )
-  return {
-    entityIds: western ? NYC_SEED : LAGOS_SEED,
-    tagIds: tagIds.length > 0 ? tagIds : undefined
-  }
-}
 
 // ---- Audience ----
 

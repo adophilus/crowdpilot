@@ -130,7 +130,7 @@ function Plans() {
         const ids = data
           ? PLATFORMS.filter(
               (p) =>
-                !p.mediaOnly &&
+                !p.soon &&
                 data.accounts.some(
                   (a) => a.platform === API_PLATFORM[p.id] && a.isActive
                 )
@@ -177,7 +177,7 @@ function Plans() {
   const w: When = when[d.id] ?? 'now'
   const isConnected = (p: (typeof PLATFORMS)[number]): boolean =>
     connected.includes(p.id)
-  const avail = PLATFORMS.filter((p) => !p.mediaOnly && isConnected(p))
+  const avail = PLATFORMS.filter((p) => !p.soon && isConnected(p))
   const chosen = avail.filter((p) => tg[p.id])
   const locked =
     v.isRunning ||
@@ -239,7 +239,7 @@ function Plans() {
             ...s,
             [d.id]: {
               phase: 'failed',
-              reason: 'Still publishing on Onscript — check Shipped below in a moment.'
+              reason: 'Still publishing on Onscript. Check Shipped below in a moment.'
             }
           }))
         } else if (detail.status === 'FAILED') {
@@ -429,11 +429,11 @@ function Plans() {
                   {PLATFORMS.map((p) => {
                     const on = Boolean(tg[p.id])
                     const ok = isConnected(p)
-                    const hint = p.mediaOnly
-                      ? 'Needs media uploads — soon'
+                    const hint = p.soon
+                      ? 'Coming soon'
                       : ok
                         ? undefined
-                        : 'No connected account — connect it on the Accounts page'
+                        : 'No connected account. Connect it on the Accounts page'
                     return (
                       <button
                         key={p.id}
@@ -450,7 +450,7 @@ function Plans() {
                         }
                       >
                         {p.short}
-                        {!ok && <span className="muted-xs">{p.mediaOnly ? ' · needs media — soon' : ' · not connected'}</span>}
+                        {!ok && <span className="muted-xs">{p.soon ? ' · coming soon' : ' · not connected'}</span>}
                       </button>
                     )
                   })}

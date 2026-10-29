@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { LogoMark } from '../components/ui'
 import { ensureDemoSession, getSignedInUser } from '../lib/api'
-import { DEMO_SEED } from '../lib/fixtures'
+import { DEMO_NICHE } from '../lib/fixtures'
 import { claimWorkspace, readAudience } from '../lib/workspace'
 
 // Contract: the marketing site's "See it in action" CTA links here. Mints a
@@ -34,7 +34,7 @@ function DemoPage() {
       }
       claimWorkspace('demo')
       // Fire the real Qloo read; Home renders fixtures until it lands.
-      void readAudience(DEMO_SEED)
+      void readAudience(DEMO_NICHE)
       void navigate({ to: '/home', replace: true })
     })()
     return () => {
@@ -61,7 +61,7 @@ function DemoPage() {
             >
               Try again
             </button>
-            <Link to="/onboarding/account" className="btn-text">
+            <Link to="/onboarding/$step" params={{ step: '1' }} className="btn-text">
               Create an account instead
             </Link>
           </div>

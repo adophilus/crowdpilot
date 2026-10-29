@@ -145,24 +145,61 @@ export const QlooServiceLive = Layer.effect(
         Effect.withSpan('qloo.insights')
       )
 
-    return QlooService.of({
-      search: (query, type) =>
-        call('/search', { query, types: type ? `urn:entity:${type}` : undefined }).pipe(
-          Effect.map(
-            (callResult) =>
-              resultsOf(callResult.json).map((entity) => ({
-                id: String(entity.id ?? entity.entity_id ?? ''),
-                name: String(entity.name ?? ''),
-                type: shortType(entity.type, 'place'),
-                tags: Array.isArray(entity.tags)
-                  ? (entity.tags as unknown[]).map(String)
-                  : undefined
+    // Shared pipeline: tag insights + per-domain affinities off a set of
+    // REAL signal entity ids. Qloo 400s the whole call on invented ids.
+    const profileFromSignals = (entityIds: ReadonlyArray<string>) =>
+      Effect.gen(function* () {
+        const tagResult = yield* tagInsightsCall({
+          signalEntityIds: entityIds
+        })
+        const topTags = tagResult.tags.slice(0, 8).map((tag) => ({
+          tag: tag.name || tag.id,
+          score: tag.score
+        }))
+
+        const domains: QlooEntityType[] = ['artist', 'place', 'brand', 'movie']
+        const affinities = []
+        const evidenceRefs = [...tagResult.evidenceRefs]
+        for (const domain of domains) {
+          const result = yield* insightsCall({
+            filterType: domain,
+            signalEntityIds: entityIds
+          })
+          if (result.entities.length > 0) {
+            affinities.push({
+              domain,
+              picks: result.entities.slice(0, 3).map((entity) => ({
+                id: entity.id,
+                name: entity.name,
+                type: entity.type,
+                score: entity.score ?? 0
               }))
-          ),
-          // A 404 on search means no matches, not a failure.
-          Effect.catchTag('QlooNotFoundError', () => Effect.succeed([])),
-          Effect.withSpan('qloo.search')
+            })
+          }
+        }
+        return { topTags, affinities, evidenceRefs }
+      }).pipe(Effect.withSpan('qloo.profileFromSignals'))
+
+    const searchEntities = (query: string, type?: QlooEntityType) =>
+      call('/search', { query, types: type ? `urn:entity:${type}` : undefined }).pipe(
+        Effect.map(
+          (callResult) =>
+            resultsOf(callResult.json).map((entity) => ({
+              id: String(entity.id ?? entity.entity_id ?? ''),
+              name: String(entity.name ?? ''),
+              type: shortType(entity.type, 'place'),
+              tags: Array.isArray(entity.tags)
+                ? (entity.tags as unknown[]).map(String)
+                : undefined
+            }))
         ),
+        // A 404 on search means no matches, not a failure.
+        Effect.catchTag('QlooNotFoundError', () => Effect.succeed([])),
+        Effect.withSpan('qloo.search')
+      )
+
+    return QlooService.of({
+      search: searchEntities,
 
       tags: (query) =>
         call('/v2/tags', { query }).pipe(
@@ -179,45 +216,25 @@ export const QlooServiceLive = Layer.effect(
 
       insights: (args) => insightsCall(args),
 
-      buildProfile: (entityIds, tagIds) =>
-        Effect.gen(function* () {
-          const tagResult = yield* tagInsightsCall({
-            signalEntityIds: entityIds,
-            signalTagIds: tagIds
-          })
-          const topTags = tagResult.tags.slice(0, 8).map((tag) => ({
-            tag: tag.name || tag.id,
-            score: tag.score
-          }))
+      buildProfile: (entityIds) => profileFromSignals(entityIds),
 
-          const domains: QlooEntityType[] = [
-            'artist',
-            'place',
-            'brand',
-            'movie'
-          ]
-          const affinities = []
-          const evidenceRefs = [...tagResult.evidenceRefs]
+      // Resolves the niche text into REAL Qloo entity ids via /search, then
+      // runs the insights pipeline on those. Invented ids 400 the call.
+      buildProfileFromNiche: (niche) =>
+        Effect.gen(function* () {
+          const domains: QlooEntityType[] = ['artist', 'brand', 'place']
+          const signalIds: string[] = []
           for (const domain of domains) {
-            const result = yield* insightsCall({
-              filterType: domain,
-              signalEntityIds: entityIds,
-              signalTagIds: tagIds
-            })
-            if (result.entities.length > 0) {
-              affinities.push({
-                domain,
-                picks: result.entities.slice(0, 3).map((entity) => ({
-                  id: entity.id,
-                  name: entity.name,
-                  type: entity.type,
-                  score: entity.score ?? 0
-                }))
-              })
+            const hits = yield* searchEntities(niche, domain)
+            for (const hit of hits.slice(0, 2)) {
+              if (!signalIds.includes(hit.id)) signalIds.push(hit.id)
             }
           }
-          return { topTags, affinities, evidenceRefs }
-        }).pipe(Effect.withSpan('qloo.buildProfile'))
+          if (signalIds.length < 2) {
+            return yield* Effect.fail(new QlooNotFoundError({ query: niche }))
+          }
+          return yield* profileFromSignals(signalIds)
+        }).pipe(Effect.withSpan('qloo.buildProfileFromNiche'))
     })
   })
 )

@@ -18,7 +18,7 @@ export const QlooApiLive = HttpApiBuilder.group(Api, 'Qloo', (handlers) =>
 
     return handlers
       .handle('qlooProfile', ({ payload }) =>
-        qloo.buildProfile(payload.entityIds, payload.tagIds).pipe(
+        qloo.buildProfileFromNiche(payload.niche).pipe(
           Effect.map((profile) => {
             const card = {
               topTags: [...profile.topTags],

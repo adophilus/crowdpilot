@@ -7,8 +7,7 @@ import SessionMiddleware from '../Auth/SessionMiddleware'
 export class ProfilePayload extends Schema.Class<ProfilePayload>(
   'ProfilePayload'
 )({
-  entityIds: Schema.Array(Schema.String),
-  tagIds: Schema.optional(Schema.Array(Schema.String))
+  niche: Schema.String.pipe(Schema.minLength(2))
 }) {}
 
 const AffinityPick = Schema.Struct({
