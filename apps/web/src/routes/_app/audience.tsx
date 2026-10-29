@@ -62,7 +62,7 @@ function Audience() {
   const read =
     isDemo || tags.length < 3
       ? PILOT_READ
-      : `A crowd that lights up for ${tags[0].toLowerCase()}, ${tags[1].toLowerCase()} and ${tags[2].toLowerCase()}${ws.business.city ? `, with a strong ${ws.business.city} pull` : ''}.`
+      : `A crowd that lights up for: ${tags[0].toLowerCase()}, ${tags[1].toLowerCase()} and ${tags[2].toLowerCase()}${ws.business.city ? `, with a strong ${ws.business.city} pull` : ''}.`
   const traits = isDemo || tags.length < 3 ? TRAITS : tags.slice(0, 5)
   const { items, live } = tasteItems(ws.profile, tab)
 

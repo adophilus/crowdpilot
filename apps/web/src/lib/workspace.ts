@@ -6,6 +6,7 @@ import {
   DEFAULT_SYNCED,
   DEFAULT_TRACKED,
   DEMO_BUSINESS,
+  type DirectionDef,
   type GoalId,
   type PlatformId,
   type SwitchId,
@@ -32,6 +33,7 @@ export interface WorkspaceState {
   profileError: boolean
   picks: Record<string, Pick>
   connected: Record<PlatformId, boolean>
+  directions: DirectionDef[]
   synced: Record<PlatformId, string>
   tracked: string[]
   tones: Partial<Record<ToneId, boolean>>
@@ -52,6 +54,7 @@ const blank = (): WorkspaceState => ({
   profileError: false,
   picks: {},
   connected: { x: false, fb: false, ig: false },
+  directions: [],
   synced: { ...DEFAULT_SYNCED },
   tracked: [...DEFAULT_TRACKED],
   tones: { warm: true, local: true },

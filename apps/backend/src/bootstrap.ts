@@ -8,6 +8,7 @@ import { AppConfig } from './features/config'
 import { AuthApiLive, SessionMiddlewareLive } from './features/auth'
 import { AuthLive } from './features/auth'
 import { DemoApiLive } from './features/demo'
+import { DirectionsApiLive } from './features/directions/route'
 import { SystemApiLive } from './features/system/route'
 import { AgentApiLive, AgentServiceLive } from './features/agent'
 import { LlmServiceLive } from './features/llm'
@@ -46,7 +47,8 @@ export const ApiEndpointLayer = AuthApiLive.pipe(
   Layer.provideMerge(DemoApiLive),
   Layer.provideMerge(OnscriptApiLive),
   Layer.provideMerge(PostApiLive),
-  Layer.provideMerge(WorkspaceApiLive)
+  Layer.provideMerge(WorkspaceApiLive),
+  Layer.provideMerge(DirectionsApiLive)
 )
 
 export const ApiLive = HttpApiBuilder.api(Api).pipe(
