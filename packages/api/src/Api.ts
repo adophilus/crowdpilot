@@ -5,6 +5,7 @@ import DemoApi from './Demo'
 import DirectionsApi from './Directions'
 import OnscriptApi from './Onscript'
 import PostsApi from './Posts'
+import NichesApi from './Niches'
 import QlooApi from './Qloo'
 import SystemApi from './System'
 import WorkspaceApi from './Workspace'
@@ -27,6 +28,7 @@ const Api = HttpApi.make('CrowdPilot API')
   .add(AuthApi)
   .add(DemoApi)
   .add(QlooApi)
+  .add(NichesApi)
   .add(ChatApi)
   .add(OnscriptApi)
   .add(PostsApi)

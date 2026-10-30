@@ -505,6 +505,18 @@ export function ReadingStep() {
       if (cancelled) return
       updateOnboarding({ readFailed: r !== 'ok' })
       readDone.current = true
+      // Non-blocking: niche suggestions derive from the fresh profile.
+      if (r === 'ok') {
+        void api
+          .POST('/niches/generate', bearer())
+          .then(({ data }) => {
+            if (data?.niches?.length)
+              updateWorkspace({ nichesGenerated: data.niches })
+          })
+          .catch(() => {
+            /* fixture fallback still renders */
+          })
+      }
     })
     const iv = window.setInterval(() => {
       setProg((p) => {
@@ -607,7 +619,7 @@ export function ProfileStep() {
       <div className="panel panel-last">
         <div className="panel-label">Niches hiding in your crowd</div>
         <div className="dot-list">
-          {NICHES_FOUND.map((n) => (
+          {(ws.nichesGenerated.length > 0 ? ws.nichesGenerated : NICHES_FOUND).map((n) => (
             <div key={n}>
               <span className="accent-dot" />
               {n}

@@ -3,6 +3,7 @@ import { useCallback, useState } from 'react'
 import { DirectionActions } from '../../components/DirectionActions'
 import { PilotChat } from '../../components/PilotChat'
 import { MatchStar, PilotAvatar, PlatformMark, Radar } from '../../components/ui'
+import type { MatchFill } from '../../lib/fixtures'
 import {
   HOME_DIRECTIONS,
   LOVES,
@@ -159,7 +160,16 @@ function Home() {
             <h2 id="niche-h" className="card-title">
               Niches in your crowd
             </h2>
-            {NICHES.map((n) => (
+            {(ws.nichesGenerated.length > 0
+              ? ws.nichesGenerated.map((name, i) => ({
+                  name,
+                  fill: Math.max(35, 100 - i * 20) as MatchFill,
+                  note: 'Generated from your audience',
+                  size: 'Small but loyal',
+                  detail: ''
+                }))
+              : NICHES
+            ).map((n) => (
               <div key={n.name} className="niche-row">
                 <MatchStar fill={n.fill} />
                 <span className="niche-text">

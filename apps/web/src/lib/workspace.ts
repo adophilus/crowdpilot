@@ -34,6 +34,7 @@ export interface WorkspaceState {
   picks: Record<string, Pick>
   connected: Record<PlatformId, boolean>
   directions: DirectionDef[]
+  nichesGenerated: string[]
   synced: Record<PlatformId, string>
   tracked: string[]
   tones: Partial<Record<ToneId, boolean>>
@@ -55,6 +56,7 @@ const blank = (): WorkspaceState => ({
   picks: {},
   connected: { x: false, fb: false, ig: false },
   directions: [],
+  nichesGenerated: [],
   synced: { ...DEFAULT_SYNCED },
   tracked: [...DEFAULT_TRACKED],
   tones: { warm: true, local: true },
@@ -75,7 +77,8 @@ const load = (): WorkspaceState => {
       ...parsed,
       // Old copies may predate the tt→ig rename — keep the keys exact.
       connected: { ...blank().connected, ...parsed.connected },
-      synced: { ...blank().synced, ...parsed.synced }
+      synced: { ...blank().synced, ...parsed.synced },
+      nichesGenerated: Array.isArray(parsed.nichesGenerated) ? parsed.nichesGenerated : []
     }
   } catch {
     return DEFAULT
@@ -148,6 +151,7 @@ const adoptServerWorkspace = async (): Promise<void> => {
       connected: { ...fresh.connected, ...ws.connected },
       synced: { ...fresh.synced, ...ws.synced },
       picks: ws.picks ?? {},
+      nichesGenerated: Array.isArray(ws.nichesGenerated) ? ws.nichesGenerated : [],
       tracked: ws.tracked ?? [],
       tones: ws.tones ?? fresh.tones,
       lastTone: ws.lastTone ?? fresh.lastTone,
