@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
+import { Wordmark } from '../components/ui'
 import { useEffect, useState } from 'react'
 import { API_URL, storeSession } from '../lib/api'
 import { claimWorkspace, hasCompletedOnboarding } from '../lib/workspace'
@@ -52,25 +53,35 @@ function AuthCallback() {
   return (
     <div className="onb">
       <main className="onb-main">
+        <div className="onb-mark">
+          <Wordmark size={28} />
+        </div>
         <div className="onb-col" style={{ textAlign: 'center' }}>
           {error ? (
             <>
               <h1 className="onb-title">Sign-in hit a snag.</h1>
               <p className="onb-lede">{error}</p>
-              <Link to="/onboarding/$step" params={{ step: '1' }} className="btn btn-primary">
+              <Link
+                to="/onboarding/$step"
+                params={{ step: '1' }}
+                className="btn-text btn-text-u"
+              >
                 Back to sign-in
               </Link>
             </>
+          ) : done ? (
+            <>
+              <h1 className="onb-title">You're in.</h1>
+              <p className="onb-lede">
+                {hasCompletedOnboarding()
+                  ? 'Taking you to your workspace.'
+                  : 'Taking you back to onboarding.'}
+              </p>
+            </>
           ) : (
             <>
-              <h1 className="onb-title">{done ? 'Almost there…' : 'Signing you in…'}</h1>
-              <p className="onb-lede">
-                {done
-                  ? hasCompletedOnboarding()
-                    ? 'Taking you to your workspace.'
-                    : 'Taking you back to onboarding.'
-                  : 'Finishing up with Google.'}
-              </p>
+              <h1 className="onb-title">Signing you in…</h1>
+              <p className="onb-lede">Finishing up with Google.</p>
             </>
           )}
         </div>

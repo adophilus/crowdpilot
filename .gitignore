@@ -9,3 +9,5 @@ apps/backend/migrations/
 !.env.development.example
 .DS_Store
 result
+qah.jsonl
+*.worker-task-*.md

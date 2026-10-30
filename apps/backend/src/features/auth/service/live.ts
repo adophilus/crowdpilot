@@ -149,6 +149,7 @@ export const AuthLive = Layer.effect(
 
       googleSignIn: (code, state) =>
         Effect.gen(function* () {
+          console.log('[debug] googleSignIn state lookup:', state, 'known:', [...googleStates.keys()])
           const expiresAt = googleStates.get(state)
           googleStates.delete(state) // single-use
           if (!expiresAt || expiresAt < Date.now()) {

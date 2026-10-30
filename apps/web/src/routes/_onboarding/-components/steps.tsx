@@ -4,13 +4,8 @@
 // state lives in the lib/onboarding + lib/workspace stores (never local).
 import { useNavigate } from '@tanstack/react-router'
 import { useEffect, useRef, useState } from 'react'
-import { GoogleMark, Icon, PlatformMark, Wordmark } from '../../../components/ui'
-import {
-  API_URL,
-  api,
-  bearer,
-  storeSession
-} from '../../../lib/api'
+import { Icon, PlatformMark, Wordmark } from '../../../components/ui'
+import { api, bearer, storeSession } from '../../../lib/api'
 import {
   API_PLATFORM,
   GOALS,
@@ -115,21 +110,10 @@ export function AccountStep() {
             Create your account to get your first audience profile in about two
             minutes.
           </p>
-          <button
-            type="button"
-            className="btn btn-outline btn-block"
-            onClick={() => {
-              window.location.href = `${API_URL}/auth/google/start`
-            }}
-          >
-            <GoogleMark size={18} />
-            Continue with Google
-          </button>
-          <div className="or-rule">
-            <span />
-            or
-            <span />
-          </div>
+          {/* Google sign-in temporarily hidden: the prod callback failed
+              during testing. Backend flow stays intact — restore this block
+              (and re-enable the Google consent on the account) to bring it
+              back. */}
           <form
             onSubmit={(e) => {
               e.preventDefault()
