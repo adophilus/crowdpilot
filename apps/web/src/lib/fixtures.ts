@@ -449,12 +449,6 @@ export const pilotIntro = (first: string): string[] => [
   'Ask me what to play, stock or post next. Every answer cites the Qloo data behind it.'
 ]
 
-export const QUICK_PROMPTS = [
-  'Plan the Afro-house night',
-  'Who are my top fans?',
-  'What should I post this week?'
-]
-
 // ---- Accounts ----
 
 export const DEFAULT_SYNCED: Record<PlatformId, string> = {

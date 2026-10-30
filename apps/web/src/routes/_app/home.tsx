@@ -32,11 +32,21 @@ function Home() {
   const closeChat = useCallback(() => setChatOpen(false), [])
   const loves = lovesFrom(ws.profile, LOVES).slice(0, 5)
   const accounts = PLATFORMS.filter((p) => ws.connected[p.id])
+  // AI-generated directions win; fixtures are the pre-generation fallback.
+  const dirs = ws.directions.length
+    ? ws.directions.map((d) => ({
+        id: d.id,
+        kind: d.kind,
+        title: d.title,
+        why: d.summary,
+        fill: d.fill
+      }))
+    : HOME_DIRECTIONS
   const isDemo = ws.owner === 'demo'
 
   const morning = PLANS.find((p) => p.id === 'morning')
   const plans = [
-    ...HOME_DIRECTIONS.filter((d) => ws.picks[d.id] === 'taken').map((d) => ({
+    ...dirs.filter((d) => ws.picks[d.id] === 'taken').map((d) => ({
       id: d.id,
       title: d.title,
       next: 'Pilot is drafting the steps…',
@@ -171,7 +181,7 @@ function Home() {
             </Link>
           </div>
           <div className="g3 dirs">
-            {HOME_DIRECTIONS.map((d) => {
+            {dirs.map((d) => {
               const s = ws.picks[d.id]
               return (
                 <article

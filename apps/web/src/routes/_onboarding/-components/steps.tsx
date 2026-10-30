@@ -9,7 +9,6 @@ import {
   API_URL,
   api,
   bearer,
-  getSignedInUser,
   storeSession
 } from '../../../lib/api'
 import {
@@ -449,6 +448,11 @@ export function ConnectStep() {
               </span>
               More platforms coming soon
             </div>
+            {connectError && (
+              <p className="quiet-note" role="alert">
+                {connectError}
+              </p>
+            )}
           </div>
         </section>
         <section aria-label="Describe a niche" style={{ order: isBreak ? 1 : 2 }}>

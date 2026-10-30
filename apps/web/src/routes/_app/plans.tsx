@@ -77,11 +77,6 @@ const timeAgo = (iso: string): string => {
 const excerpt = (text: string): string =>
   text.length > 92 ? `${text.slice(0, 92).trimEnd()}…` : text
 
-const localDT = (d: Date): string => {
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
-
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 function Plans() {
@@ -107,7 +102,6 @@ function Plans() {
     Record<string, Record<PlatformId, boolean>>
   >({})
   const [when, setWhen] = useState<Record<string, When>>({})
-  const [schedAt, setSchedAt] = useState(localDT(new Date(Date.now() + 3600_000)))
   const [ships, setShips] = useState<Record<string, Ship>>({})
   const [shipError, setShipError] = useState('')
 
@@ -276,36 +270,6 @@ function Plans() {
       } finally {
         void loadShipped()
       }
-    } else {
-      const ts = Math.floor(new Date(schedAt).getTime() / 1000)
-      if (!Number.isFinite(ts) || ts <= Math.floor(Date.now() / 1000)) {
-        setShipError('Pick a time in the future to schedule.')
-        return
-      }
-      setShips((s) => ({
-        ...s,
-        [d.id]: { phase: 'publishing', note: 'Scheduling…' }
-      }))
-      try {
-        const { data, error } = await api.POST('/posts', {
-          ...bearer(),
-          body: { text: draft, platforms, publishNow: false, scheduledAt: ts }
-        })
-        setShips((s) => ({
-          ...s,
-          [d.id]:
-            error || !data
-              ? { phase: 'failed', reason: error && 'message' in error && error.message ? error.message : "Couldn't schedule the post. Try again." }
-              : { phase: 'scheduled', note: `Scheduled for ${new Date(schedAt).toLocaleString()}.` }
-        }))
-      } catch {
-        setShips((s) => ({
-          ...s,
-          [d.id]: { phase: 'failed', reason: 'Connection lost. Try again.' }
-        }))
-      } finally {
-        void loadShipped()
-      }
     }
   }
 
@@ -463,42 +427,33 @@ function Plans() {
                   )}
                 </fieldset>
                 <div role="radiogroup" aria-label="When" className="segmented segmented-sm">
-                  {(
-                    [
-                      ['now', 'Post now'],
-                      ['sched', 'Schedule']
-                    ] as [When, string][]
-                  ).map(([id, label]) => (
-                    // biome-ignore lint/a11y/useSemanticElements: segmented radio from the design
-                    <button
-                      key={id}
-                      type="button"
-                      role="radio"
-                      className="tab"
-                      aria-checked={w === id}
-                      disabled={locked}
-                      onClick={() => setWhen((x) => ({ ...x, [d.id]: id }))}
-                    >
-                      {label}
-                    </button>
-                  ))}
+                  {/* Scheduling works end to end but stays hidden pending a product call. */}
+                  {/* biome-ignore lint/a11y/useSemanticElements: segmented radio from the design */}
+                  <button
+                    key="now"
+                    type="button"
+                    role="radio"
+                    className="tab"
+                    aria-checked={w === 'now'}
+                    disabled={locked}
+                    onClick={() => setWhen((x) => ({ ...x, [d.id]: 'now' }))}
+                  >
+                    Post now
+                  </button>
+                  {/* biome-ignore lint/a11y/useSemanticElements: segmented radio from the design */}
+                  <button
+                    key="sched"
+                    type="button"
+                    role="radio"
+                    className="tab"
+                    aria-checked={false}
+                    disabled
+                    title="Scheduling is coming soon"
+                  >
+                    Schedule · soon
+                  </button>
                 </div>
               </div>
-              {w === 'sched' && !locked && (
-                <div className="inline-form">
-                  <label htmlFor="cp-sched" className="sr-only">
-                    Date and time
-                  </label>
-                  <input
-                    id="cp-sched"
-                    className="field field-sm"
-                    type="datetime-local"
-                    value={schedAt}
-                    min={localDT(new Date())}
-                    onChange={(e) => setSchedAt(e.target.value)}
-                  />
-                </div>
-              )}
             </div>
           )}
 

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { getToken } from '../lib/api'
-import { QUICK_PROMPTS } from '../lib/fixtures'
+import { useWorkspace } from '../lib/workspace'
 import { streamChat } from '../lib/sse'
 import { applyEvent, ChatMessage, type Msg } from './ChatMessage'
 import { Icon, PilotAvatar } from './ui'
@@ -50,6 +50,13 @@ export function PilotChat({
   const [messages, setMessagesState] = useState<Msg[]>(session.messages)
   const [compare, setCompare] = useState<Record<string, Msg>>({})
   const [busy, setBusy] = useState(false)
+  const ws = useWorkspace()
+  const topDirection = ws.directions[0]
+  const suggestions = [
+    ...(topDirection ? [`Plan: ${topDirection.title.toLowerCase()}`] : []),
+    'Who are my top fans?',
+    'What should I post this week?'
+  ]
   const [draft, setDraft] = useState('')
   const logRef = useRef<HTMLDivElement>(null)
 
@@ -196,7 +203,7 @@ export function PilotChat({
 
       <div className="chat-foot">
         <div className="chat-quick">
-          {QUICK_PROMPTS.map((q) => (
+          {suggestions.map((q) => (
             <button
               key={q}
               type="button"

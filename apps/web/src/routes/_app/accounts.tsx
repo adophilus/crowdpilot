@@ -238,6 +238,11 @@ function Accounts() {
             <Icon name="plus" size={18} stroke={2} />
           </span>
           More platforms coming soon
+      {connectError && (
+        <p className="quiet-note" role="alert">
+          {connectError}
+        </p>
+      )}
         </div>
       </section>
 
