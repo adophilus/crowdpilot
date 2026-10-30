@@ -6,7 +6,7 @@ import {
   useNavigate
 } from '@tanstack/react-router'
 import { useEffect, useRef, useState } from 'react'
-import { Icon, type IconName, LogoMark } from '../components/ui'
+import { GearMark, Icon, type IconName, LogoMark } from '../components/ui'
 import {
   api,
   bearer,
@@ -41,14 +41,14 @@ const SITE = 'https://crowdpilot.hackathons.adophilus.com'
 const NAV: {
   to: '/home' | '/audience' | '/directions' | '/plans' | '/accounts' | '/settings'
   label: string
-  icon: IconName
+  icon: IconName | null
 }[] = [
   { to: '/home', label: 'Home', icon: 'home' },
   { to: '/audience', label: 'Audience', icon: 'audience' },
   { to: '/directions', label: 'Directions', icon: 'directions' },
   { to: '/plans', label: 'Plans', icon: 'plans' },
   { to: '/accounts', label: 'Accounts', icon: 'link' },
-  { to: '/settings', label: 'Settings', icon: 'settings' }
+  { to: '/settings', label: 'Settings', icon: null }
 ]
 
 let profileRequested = false
@@ -137,7 +137,7 @@ function Sidebar() {
             activeProps={{ 'aria-current': 'page', className: 'is-active' }}
             aria-label={n.label}
           >
-            <Icon name={n.icon} size={18} />
+            {n.icon ? <Icon name={n.icon} size={18} /> : <GearMark size={18} />}
             <span className="navlabel">{n.label}</span>
           </Link>
         ))}
@@ -155,7 +155,7 @@ function Sidebar() {
               className="mi"
               onClick={() => setOpen(false)}
             >
-              <Icon name="settings" size={16} stroke={1.9} />
+              <GearMark size={16} />
               Workspace settings
             </Link>
             <Link

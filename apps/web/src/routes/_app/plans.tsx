@@ -54,16 +54,18 @@ function Plans() {
   // Generated directions win when present; fixture plans remain the fallback.
   // A drafting skeleton is added for every direction picked with Proceed that
   // doesn't have a hand-written plan yet.
-  const directionSource = ws.directions.length ? ws.directions : DIRECTIONS
-  const defs: PlanDef[] = [
-    ...directionSource.filter(
-      (d) => ws.picks[d.id] === 'taken' && !PLANS.some((p) => p.id === d.id)
-    ).map(draftPlanFor),
-    ...PLANS
-  ]
+  // With AI-generated directions, the plans ARE the directions (each opens
+  // with an editable draft and ships via Post now). Fixtures are the
+  // pre-generation fallback only.
+  const defs: PlanDef[] = ws.directions.length
+    ? ws.directions.map(draftPlanFor)
+    : [
+        ...DIRECTIONS.filter((d) => ws.picks[d.id] === 'taken').map(draftPlanFor),
+        ...PLANS
+      ]
 
   const [sel, setSel] = useState(
-    plan && defs.some((d) => d.id === plan) ? plan : 'brunch'
+    plan && defs.some((d) => d.id === plan) ? plan : defs[0]?.id
   )
   const [drafts, setDrafts] = useState<Record<string, string>>({})
   const [targets, setTargets] = useState<
