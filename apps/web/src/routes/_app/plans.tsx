@@ -28,15 +28,6 @@ type Ship =
   | { phase: 'scheduled'; note: string }
   | { phase: 'done'; links: { label: string; url: string }[]; note: string }
   | { phase: 'failed'; reason: string }
-type ShippedPost = {
-  id: string
-  text: string
-  platforms: ApiPlatform[]
-  status: string
-  permalink?: string
-  createdAt: string
-}
-
 const STATUS: Record<PlanDef['base'], string> = {
   ready: 'Ready to run',
   scheduled: 'Scheduled',
@@ -52,30 +43,7 @@ const STEP_LABEL: Record<StepState, string> = {
 }
 
 // Onscript PostStatus → the chip vocabulary this screen already uses.
-const shipChip = (status: string): string =>
-  status === 'PUBLISHED' || status === 'PARTIALLY_PUBLISHED'
-    ? 'Live'
-    : status === 'SCHEDULED'
-      ? 'Scheduled'
-      : status === 'PUBLISHING'
-        ? 'Running'
-        : status === 'FAILED'
-          ? 'Failed'
-          : 'Drafting'
-
 const TERMINAL = ['PUBLISHED', 'PARTIALLY_PUBLISHED', 'FAILED']
-
-const timeAgo = (iso: string): string => {
-  const mins = Math.round((Date.now() - new Date(iso).getTime()) / 60000)
-  if (mins < 1) return 'just now'
-  if (mins < 60) return `${mins} min ago`
-  const hrs = Math.round(mins / 60)
-  if (hrs < 24) return `${hrs}h ago`
-  return `${Math.round(hrs / 24)}d ago`
-}
-
-const excerpt = (text: string): string =>
-  text.length > 92 ? `${text.slice(0, 92).trimEnd()}…` : text
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
@@ -108,16 +76,6 @@ function Plans() {
   // Real connected accounts (from Onscript) gate the platform toggles.
   const [connected, setConnected] = useState<PlatformId[]>([])
   // Shipped posts, refreshed on mount and after every ship.
-  const [shipped, setShipped] = useState<ShippedPost[] | null>(null)
-
-  const loadShipped = async (): Promise<void> => {
-    try {
-      const { data } = await api.GET('/posts', bearer())
-      if (data) setShipped(data.posts)
-    } catch {
-      /* offline: keep whatever we had */
-    }
-  }
 
   useEffect(() => {
     void (async () => {
@@ -148,7 +106,6 @@ function Plans() {
       } catch {
         setConnected([])
       }
-      void loadShipped()
     })()
   }, [])
 
@@ -268,8 +225,7 @@ function Plans() {
           [d.id]: { phase: 'failed', reason: 'Connection lost while publishing. Try again.' }
         }))
       } finally {
-        void loadShipped()
-      }
+        }
     }
   }
 
@@ -516,52 +472,6 @@ function Plans() {
         </section>
       </div>
 
-      <section className="card card-stack" aria-labelledby="shipped-h">
-        <div className="row-between row-wrap">
-          <h2 id="shipped-h" className="card-title card-title-gap">
-            Shipped
-          </h2>
-          <button
-            type="button"
-            className="btn btn-outline btn-row"
-            onClick={() => void loadShipped()}
-          >
-            Refresh
-          </button>
-        </div>
-        {shipped === null ? (
-          <p className="muted">Loading…</p>
-        ) : shipped.length === 0 ? (
-          <p className="muted">
-            Nothing shipped yet. Run a plan above and it lands here with real
-            links.
-          </p>
-        ) : (
-          shipped.map((p) => (
-            <div key={p.id} className="plan-line msg">
-              <div className="plan-line-text">
-                <div className="plan-line-title">{excerpt(p.text)}</div>
-                <div className="plan-line-next">
-                  {p.platforms.map(platformShort).join(', ')} · {timeAgo(p.createdAt)}
-                </div>
-              </div>
-              <span className="status-chip" data-status={shipChip(p.status)}>
-                {shipChip(p.status)}
-              </span>
-              {p.permalink && (
-                <a
-                  className="text-link text-sm"
-                  href={p.permalink}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  View
-                </a>
-              )}
-            </div>
-          ))
-        )}
-      </section>
     </main>
   )
 }
