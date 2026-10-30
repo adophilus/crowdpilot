@@ -329,8 +329,7 @@ function Plans() {
             </ol>
           </div>
 
-          {d.post && (
-            <div className="post-box">
+          <div className="post-box">
               <div className="row-between row-wrap">
                 <label htmlFor="cp-post" className="sub-title sub-title-flat">
                   The post, in your voice
@@ -413,7 +412,6 @@ function Plans() {
                 </div>
               </div>
             </div>
-          )}
 
           {ship?.phase === 'done' && (
             <div role="status" className="state-live fade-in">
